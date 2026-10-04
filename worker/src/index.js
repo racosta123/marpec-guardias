@@ -150,7 +150,7 @@ async function primerAdmin(env, request) {
   if (st.locked) throw notFound();
 
   const supplied = request.headers.get("x-setup-token") || "";
-  if (!env.SETUP_TOKEN || !safeEqual(supplied, env.SETUP_TOKEN)) {
+  if (!env.SETUP_TOKEN || !safeEqual(supplied, env.SETUP_TOKEN.trim())) {
     await limiter(env, `setup:${ip}`, "fail", SETUP_LIMIT);
     throw notFound();
   }

@@ -28,7 +28,7 @@ export class HttpError extends Error {
 let saCache = null; // { raw, sa, key }
 async function serviceAccount(env) {
   if (saCache && saCache.raw === env.SERVICE_ACCOUNT_JSON) return saCache;
-  const sa = JSON.parse(env.SERVICE_ACCOUNT_JSON);
+  const sa = JSON.parse(env.SERVICE_ACCOUNT_JSON.replace(/^﻿/, "").trim());
   saCache = { raw: env.SERVICE_ACCOUNT_JSON, sa, key: await importPrivateKey(sa.private_key) };
   return saCache;
 }
