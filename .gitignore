@@ -1,0 +1,13 @@
+node_modules/
+.wrangler/
+.dev.vars
+.env
+.env.*
+*.pem
+*service-account*.json
+*serviceAccount*.json
+firebase-debug.log
+firestore-debug.log
+ui-debug.log
+.firebase/
+.tools/

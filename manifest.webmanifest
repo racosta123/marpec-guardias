@@ -1,0 +1,15 @@
+{
+  "name": "MARPEC Guardias",
+  "short_name": "MARPEC",
+  "description": "MARPEC Seguridad Privada — control de guardias.",
+  "lang": "es-MX",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#F3F4F7",
+  "theme_color": "#1B2A55",
+  "icons": [
+    { "src": "marpec-logo.png", "sizes": "211x225", "type": "image/png", "purpose": "any" }
+  ]
+}

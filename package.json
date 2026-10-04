@@ -1,0 +1,22 @@
+{
+  "name": "marpec-guardias",
+  "private": true,
+  "version": "0.1.0",
+  "description": "MARPEC Guardias - PWA (Fase 1: base segura). Las dependencias son SOLO de build/test; nada se carga de terceros en tiempo de ejecucion.",
+  "scripts": {
+    "build:vendor": "node tools/build-vendor.mjs",
+    "test:worker": "node --test worker/test/*.test.js",
+    "test:rules": "firebase emulators:exec --only firestore,storage --project demo-marpec \"node --test tests/*.test.js\"",
+    "audit": "npm audit && node tools/scan-secrets.mjs"
+  },
+  "devDependencies": {
+    "@firebase/rules-unit-testing": "^5.0.2",
+    "@fontsource/barlow": "^5.3.0",
+    "@fontsource/barlow-condensed": "^5.3.0",
+    "esbuild": "^0.28.2",
+    "firebase": "^12.19.0"
+  },
+  "overrides": {
+    "@grpc/grpc-js": "^1.14.5"
+  }
+}

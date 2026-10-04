@@ -1,0 +1,11 @@
+rules_version = '2';
+
+// Bucket privado: denegar todo. (Las fotos de asistencia llegan en fases posteriores,
+// vía URLs firmadas emitidas por el Worker.)
+service firebase.storage {
+  match /b/{bucket}/o {
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}

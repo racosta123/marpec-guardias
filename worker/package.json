@@ -1,0 +1,11 @@
+{
+  "name": "marpec-guardias-proxy",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Worker proxy de MARPEC Guardias. Cero dependencias en runtime.",
+  "scripts": {
+    "test": "node --test test/*.test.js"
+  }
+}
+

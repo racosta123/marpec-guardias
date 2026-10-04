@@ -1,0 +1,22 @@
+rules_version = '2';
+
+// DENEGAR TODO por defecto. En la Fase 1 ningún cliente escribe: todo pasa por el Worker
+// (cuenta de servicio, que no se rige por estas reglas).
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Cualquier colección no mencionada abajo (credenciales, ajustes, y las de fases futuras)
+    // queda cerrada para todos los clientes.
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Perfil público: cada persona lee SOLO el suyo, y solo con un rol válido asignado por el Worker.
+    match /usuarios/{uid} {
+      allow get: if request.auth != null
+                 && request.auth.uid == uid
+                 && request.auth.token.rol in ['guardia', 'supervisor', 'admin'];
+      allow list, create, update, delete: if false;
+    }
+  }
+}
