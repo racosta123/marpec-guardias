@@ -84,10 +84,15 @@ export async function createWorld() {
         return json({});
       }
       const b = JSON.parse(init.body);
+      if (u.pathname.endsWith("/accounts:update")) {
+        // Igual que Google: la creación NO guarda customAttributes; solo la actualización.
+        authUsers.get(b.localId).customAttributes = b.customAttributes;
+        return json({ localId: b.localId });
+      }
       if ([...authUsers.values()].some((x) => x.email === b.email))
         return json({ error: { message: "EMAIL_EXISTS" } }, 400);
       const uid = `auth-${authUsers.size + 1}`;
-      authUsers.set(uid, { email: b.email, customAttributes: b.customAttributes });
+      authUsers.set(uid, { email: b.email, customAttributes: undefined });
       return json({ localId: uid });
     }
     return realFetch(input, init);

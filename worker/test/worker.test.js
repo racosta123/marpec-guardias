@@ -183,6 +183,17 @@ test("admin no puede crear otro admin por la API; supervisor recibe claim de sup
   assert.deepEqual(JSON.parse(u.customAttributes), { rol: "supervisor" });
 });
 
+test("usuarios de prueba quedan marcados con prueba=true", async () => {
+  const { adminTok } = await sembrarAdminYGuardia();
+  const h = { authorization: `Bearer ${adminTok}` };
+  const r = await call(worker, env, "POST", "/admin/usuarios", { headers: h, body: { rol: "guardia", nombre: "Gina Prueba", numeroEmpleado: "T001", pin: "5937", prueba: true } });
+  assert.equal(r.status, 201);
+  const base = `projects/${PROJECT}/databases/(default)/documents`;
+  assert.equal(w.docs.get(`${base}/usuarios/g-T001`).prueba.booleanValue, true);
+  assert.equal(w.docs.get(`${base}/credenciales/T001`).prueba.booleanValue, true);
+  assert.equal(w.docs.get(`${base}/usuarios/g-G001`).prueba, undefined);
+});
+
 test("primer admin: token incorrecto → 404; un solo uso; luego deshabilitado", async () => {
   const body = { nombre: "Ana Admin", email: "ana@marpec.mx", password: "una-clave-muy-larga-1" };
   const mal = await call(worker, env, "POST", "/setup/primer-admin", { headers: { "x-setup-token": "nope" }, body });

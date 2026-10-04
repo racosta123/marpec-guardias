@@ -197,6 +197,8 @@ async function crearUsuario(env, request) {
   const body = await readJson(request);
   const nombre = validateNombre(body.nombre);
   if (!nombre) throw new HttpError(400, "bad_request");
+  // Los usuarios de prueba se marcan para poder borrarlos antes de entregar.
+  const extra = body.prueba === true ? { prueba: true } : {};
 
   if (body.rol === "guardia") {
     const numero = typeof body.numeroEmpleado === "string" ? body.numeroEmpleado.trim().toUpperCase() : "";
@@ -208,13 +210,13 @@ async function crearUsuario(env, request) {
     await commit(env, [
       {
         path: `credenciales/${numero}`,
-        data: { uid, hash, salt, iterations: PBKDF2_ITERATIONS, activo: true },
+        data: { uid, hash, salt, iterations: PBKDF2_ITERATIONS, activo: true, ...extra },
         mustNotExist: true,
         serverTimeField: "creadoEn",
       },
       {
         path: `usuarios/${uid}`,
-        data: { nombre, rol: "guardia", numeroEmpleado: numero, activo: true },
+        data: { nombre, rol: "guardia", numeroEmpleado: numero, activo: true, ...extra },
         mustNotExist: true,
         serverTimeField: "creadoEn",
       },
@@ -229,7 +231,7 @@ async function crearUsuario(env, request) {
     const uid = await createAuthUser(env, { email, password: body.password, displayName: nombre, claims: { rol: "supervisor" } });
     try {
       await commit(env, [
-        { path: `usuarios/${uid}`, data: { nombre, rol: "supervisor", activo: true, email }, mustNotExist: true, serverTimeField: "creadoEn" },
+        { path: `usuarios/${uid}`, data: { nombre, rol: "supervisor", activo: true, email, ...extra }, mustNotExist: true, serverTimeField: "creadoEn" },
       ]);
     } catch (e) {
       await deleteAuthUser(env, uid).catch(() => {});

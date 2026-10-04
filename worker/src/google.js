@@ -165,12 +165,21 @@ export async function createAuthUser(env, { email, password, displayName, claims
       password,
       displayName,
       emailVerified: true,
-      customAttributes: JSON.stringify(claims),
     }),
   });
   const j = await res.json().catch(() => ({}));
   if (!res.ok) {
     if (String(j?.error?.message || "").includes("EMAIL_EXISTS")) throw new HttpError(409, "exists");
+    throw new HttpError(502, "upstream_identity");
+  }
+  // La creación ignora customAttributes: los claims se asignan con una actualización explícita.
+  const up = await fetch(`${cfg(env).idtk}/projects/${env.FIREBASE_PROJECT_ID}/accounts:update`, {
+    method: "POST",
+    headers: { authorization: `Bearer ${token}`, "content-type": "application/json" },
+    body: JSON.stringify({ localId: j.localId, customAttributes: JSON.stringify(claims) }),
+  });
+  if (!up.ok) {
+    await deleteAuthUser(env, j.localId).catch(() => {});
     throw new HttpError(502, "upstream_identity");
   }
   return j.localId;
