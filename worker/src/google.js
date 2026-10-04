@@ -87,19 +87,23 @@ export async function mintCustomToken(env, uid, claims) {
 }
 
 // ---- Firestore (REST) ---------------------------------------------------
-function enc(v) {
+export function enc(v) {
   if (v === null) return { nullValue: null };
   if (typeof v === "string") return { stringValue: v };
   if (typeof v === "boolean") return { booleanValue: v };
   if (Number.isInteger(v)) return { integerValue: String(v) };
+  if (typeof v === "number" && Number.isFinite(v)) return { doubleValue: v };
+  if (Array.isArray(v)) return { arrayValue: { values: v.map(enc) } };
   throw new Error("tipo no soportado");
 }
-function dec(f) {
+export function dec(f) {
   if ("stringValue" in f) return f.stringValue;
   if ("booleanValue" in f) return f.booleanValue;
   if ("integerValue" in f) return Number(f.integerValue);
+  if ("doubleValue" in f) return f.doubleValue;
   if ("timestampValue" in f) return f.timestampValue;
   if ("nullValue" in f) return null;
+  if ("arrayValue" in f) return (f.arrayValue.values || []).map(dec);
   return undefined;
 }
 const toFields = (o) => Object.fromEntries(Object.entries(o).map(([k, v]) => [k, enc(v)]));
@@ -117,7 +121,8 @@ export async function getDocument(env, path) {
   return fromFields((await res.json()).fields);
 }
 
-// writes: [{ path, data, mustNotExist?, serverTimeField? }]  — todo en una sola transacción.
+// writes: [{ path, data, mustNotExist?, mustExist?, merge?, serverTimeField?, serverTimeFields? }]
+// Todo en una sola transacción atómica. `merge` actualiza SOLO los campos de `data` (updateMask).
 export async function commit(env, writes) {
   const token = await accessToken(env);
   const body = {
@@ -125,9 +130,12 @@ export async function commit(env, writes) {
       const out = {
         update: { name: `${base(env)}/${w.path}`, fields: toFields(w.data) },
       };
+      if (w.merge) out.updateMask = { fieldPaths: Object.keys(w.data) };
       if (w.mustNotExist) out.currentDocument = { exists: false };
-      if (w.serverTimeField)
-        out.updateTransforms = [{ fieldPath: w.serverTimeField, setToServerValue: "REQUEST_TIME" }];
+      if (w.mustExist) out.currentDocument = { exists: true };
+      const stf = [...(w.serverTimeField ? [w.serverTimeField] : []), ...(w.serverTimeFields || [])];
+      if (stf.length)
+        out.updateTransforms = stf.map((f) => ({ fieldPath: f, setToServerValue: "REQUEST_TIME" }));
       return out;
     }),
   };
@@ -136,14 +144,36 @@ export async function commit(env, writes) {
     headers: { authorization: `Bearer ${token}`, "content-type": "application/json" },
     body: JSON.stringify(body),
   });
+  if (res.status === 404) throw new HttpError(404, "not_found");
   if (res.status === 409 || res.status === 400) {
     const j = await res.json().catch(() => ({}));
     const st = j?.error?.status;
     if (st === "ALREADY_EXISTS" || st === "FAILED_PRECONDITION" || res.status === 409)
       throw new HttpError(409, "exists");
+    if (st === "NOT_FOUND") throw new HttpError(404, "not_found");
     throw new HttpError(502, "upstream_firestore");
   }
   if (!res.ok) throw new HttpError(502, "upstream_firestore");
+}
+
+// filtros: [{ campo, op: "EQUAL"|"GREATER_THAN_OR_EQUAL"|"LESS_THAN", valor }]. Devuelve [{ id, ...campos }].
+export async function runQuery(env, coleccion, filtros = [], { limite = 1000 } = {}) {
+  const token = await accessToken(env);
+  const fieldFilters = filtros.map((f) => ({
+    fieldFilter: { field: { fieldPath: f.campo }, op: f.op, value: enc(f.valor) },
+  }));
+  const structuredQuery = { from: [{ collectionId: coleccion }], limit: limite };
+  if (fieldFilters.length === 1) structuredQuery.where = fieldFilters[0];
+  else if (fieldFilters.length > 1) structuredQuery.where = { compositeFilter: { op: "AND", filters: fieldFilters } };
+  const res = await fetch(`${cfg(env).firestore}/${base(env)}:runQuery`, {
+    method: "POST",
+    headers: { authorization: `Bearer ${token}`, "content-type": "application/json" },
+    body: JSON.stringify({ structuredQuery }),
+  });
+  if (!res.ok) throw new HttpError(502, "upstream_firestore");
+  return (await res.json())
+    .filter((r) => r.document)
+    .map((r) => ({ id: r.document.name.split("/").pop(), ...fromFields(r.document.fields) }));
 }
 
 export async function deleteDocument(env, path) {
@@ -183,6 +213,37 @@ export async function createAuthUser(env, { email, password, displayName, claims
     throw new HttpError(502, "upstream_identity");
   }
   return j.localId;
+}
+
+// Inhabilita/habilita la cuenta y REVOCA los refresh tokens (validSince = ahora).
+// Si la cuenta aún no existe en Auth (guardia que nunca entró) no hay nada que revocar.
+export async function setAuthUserState(env, uid, { disabled }) {
+  const token = await accessToken(env);
+  const body = { localId: uid, disableUser: disabled };
+  if (disabled) body.validSince = String(Math.floor(Date.now() / 1000));
+  const res = await fetch(`${cfg(env).idtk}/projects/${env.FIREBASE_PROJECT_ID}/accounts:update`, {
+    method: "POST",
+    headers: { authorization: `Bearer ${token}`, "content-type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  if (res.ok) return { existia: true };
+  const j = await res.json().catch(() => ({}));
+  if (String(j?.error?.message || "").includes("USER_NOT_FOUND")) return { existia: false };
+  throw new HttpError(502, "upstream_identity");
+}
+
+export async function updateAuthUser(env, uid, campos) {
+  const token = await accessToken(env);
+  const res = await fetch(`${cfg(env).idtk}/projects/${env.FIREBASE_PROJECT_ID}/accounts:update`, {
+    method: "POST",
+    headers: { authorization: `Bearer ${token}`, "content-type": "application/json" },
+    body: JSON.stringify({ localId: uid, ...campos }),
+  });
+  if (!res.ok) {
+    const j = await res.json().catch(() => ({}));
+    if (String(j?.error?.message || "").includes("EMAIL_EXISTS")) throw new HttpError(409, "exists");
+    throw new HttpError(502, "upstream_identity");
+  }
 }
 
 export async function deleteAuthUser(env, uid) {

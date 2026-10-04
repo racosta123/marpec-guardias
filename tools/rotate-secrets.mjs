@@ -1,6 +1,6 @@
 // Carga/rota los secrets del Worker SIN pasar por el chat ni por el disco (salvo la llave de la
 // cuenta de servicio, que existe en un archivo temporal solo unos segundos y se borra).
-// Uso: node tools/rotate-secrets.mjs sa|pepper|setup
+// Uso: node tools/rotate-secrets.mjs sa|pepper|setup|qr
 import { spawnSync } from "node:child_process";
 import { randomBytes } from "node:crypto";
 import { mkdirSync, readFileSync, rmSync, writeFileSync, existsSync } from "node:fs";
@@ -21,6 +21,7 @@ function putSecret(name, value) {
 
 const what = process.argv[2];
 if (what === "pepper") putSecret("PIN_PEPPER", randomBytes(48).toString("base64"));
+else if (what === "qr") putSecret("QR_SECRET", randomBytes(48).toString("base64"));
 else if (what === "setup") {
   const t = randomBytes(32).toString("hex");
   putSecret("SETUP_TOKEN", t);

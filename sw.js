@@ -1,9 +1,11 @@
 // Service worker: solo cachea el "cascarón" estático de la app (HTML/CSS/JS/fuentes/logo).
 // NUNCA intercepta ni cachea peticiones al Worker ni a Firebase (credenciales y datos).
-const VERSION = "marpec-v1";
+const VERSION = "marpec-v2";
 const SHELL = [
   "./", "index.html", "privacidad.html", "manifest.webmanifest", "marpec-logo.png",
-  "css/app.css", "js/app.js", "js/config.js", "js/vendor/firebase.js",
+  "css/app.css", "js/app.js", "js/config.js", "js/api.js", "js/ui.js", "js/tz.js", "js/qr-page.js",
+  "js/vistas/guardia.js", "js/vistas/personal.js", "js/vistas/sitios.js", "js/vistas/turnos.js", "js/vistas/empresa.js", "js/vistas/bitacora.js",
+  "js/vendor/firebase.js", "js/vendor/qr.js", "qr.html",
   "fonts/barlow-400.woff2", "fonts/barlow-500.woff2", "fonts/barlow-600.woff2", "fonts/barlow-700.woff2",
   "fonts/barlow-condensed-600.woff2", "fonts/barlow-condensed-700.woff2",
 ];

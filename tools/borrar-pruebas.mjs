@@ -1,4 +1,5 @@
 // Borra TODOS los usuarios de prueba (prueba=true) de Firestore y de Firebase Auth.
+// La bitácora (auditoria/) es inmutable y NO se borra: sus entradas de prueba llevan prueba=true para filtrarlas.
 // Úsalo antes de entregar a MARPEC. Usa tu sesión de gcloud (propietario del proyecto).
 // Uso: node tools/borrar-pruebas.mjs [--aplicar]   (sin --aplicar solo muestra qué borraría)
 import { execSync } from "node:child_process";
@@ -21,9 +22,9 @@ async function consulta(coleccion) {
 }
 
 const usuarios = await consulta("usuarios");
-const credenciales = await consulta("credenciales");
+const credenciales = [...(await consulta("credenciales")), ...(await consulta("sitios")), ...(await consulta("turnos"))];
 const uids = usuarios.map((d) => d.name.split("/").pop());
-console.log(`Usuarios de prueba: ${usuarios.length}, credenciales de prueba: ${credenciales.length}`);
+console.log(`Usuarios de prueba: ${usuarios.length}, credenciales/sitios/turnos de prueba: ${credenciales.length}`);
 for (const d of usuarios) console.log(" -", d.fields.rol?.stringValue, d.fields.nombre?.stringValue);
 if (!aplicar) { console.log("\n(simulación) Ejecuta con --aplicar para borrar."); process.exit(0); }
 

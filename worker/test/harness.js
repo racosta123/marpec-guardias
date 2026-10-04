@@ -48,6 +48,7 @@ export async function createWorld() {
     ALLOWED_ORIGIN: ORIGIN,
     PIN_PEPPER: "pimienta-de-prueba-aleatoria-0123456789abcdef",
     SETUP_TOKEN: "setup-token-de-prueba",
+    QR_SECRET: "secreto-qr-de-prueba-0123456789abcdef0123456789",
     SERVICE_ACCOUNT_JSON: JSON.stringify({ client_email: "sa@marpec-test.iam.gserviceaccount.com", private_key: saPem }),
     RATE_LIMITER,
   };
@@ -66,11 +67,40 @@ export async function createWorld() {
       const prefix = `/v1/projects/${PROJECT}/databases/(default)/documents`;
       if (u.pathname.endsWith(":commit")) {
         const { writes } = JSON.parse(init.body);
-        for (const w of writes)
-          if (w.currentDocument?.exists === false && docs.has(w.update.name))
-            return json({ error: { status: "ALREADY_EXISTS" } }, 409);
-        for (const w of writes) docs.set(w.update.name, w.update.fields);
+        world.commits = (world.commits || 0) + 1;
+        for (const w of writes) {
+          if (w.currentDocument?.exists === false && docs.has(w.update.name)) return json({ error: { status: "ALREADY_EXISTS" } }, 409);
+          if (w.currentDocument?.exists === true && !docs.has(w.update.name)) return json({ error: { status: "NOT_FOUND" } }, 404);
+        }
+        for (const w of writes) {
+          let fields = w.update.fields || {};
+          if (w.updateMask) {
+            const prev = { ...(docs.get(w.update.name) || {}) };
+            for (const f of w.updateMask.fieldPaths) prev[f] = fields[f];
+            fields = prev;
+          }
+          fields = { ...fields };
+          for (const t of w.updateTransforms || []) fields[t.fieldPath] = { timestampValue: new Date(Date.now()).toISOString() };
+          docs.set(w.update.name, fields);
+        }
         return json({});
+      }
+      if (u.pathname.endsWith(":runQuery")) {
+        const { structuredQuery: q } = JSON.parse(init.body);
+        const filtros = !q.where ? [] : q.where.compositeFilter ? q.where.compositeFilter.filters : [q.where];
+        const val = (f) => (f === undefined ? undefined : "integerValue" in f ? Number(f.integerValue) : "stringValue" in f ? f.stringValue : "nullValue" in f ? null : "booleanValue" in f ? f.booleanValue : f.doubleValue);
+        const col = q.from[0].collectionId;
+        const out = [];
+        for (const [name, fields] of docs) {
+          const rel = name.slice(name.indexOf("/documents/") + 11).split("/");
+          if (rel.length !== 2 || rel[0] !== col) continue;
+          const ok = filtros.every(({ fieldFilter: ff }) => {
+            const x = val(fields[ff.field.fieldPath]); const y = val(ff.value);
+            return ff.op === "EQUAL" ? x === y : ff.op === "GREATER_THAN_OR_EQUAL" ? x >= y : ff.op === "LESS_THAN" ? x < y : false;
+          });
+          if (ok) out.push({ document: { name, fields } });
+        }
+        return json(out.length ? out : [{ readTime: "x" }]);
       }
       const name = decodeURIComponent(u.pathname.slice(4)); // quita /v1/
       if ((init.method || "GET") === "DELETE") { docs.delete(name); return json({}); }
@@ -86,7 +116,12 @@ export async function createWorld() {
       const b = JSON.parse(init.body);
       if (u.pathname.endsWith("/accounts:update")) {
         // Igual que Google: la creación NO guarda customAttributes; solo la actualización.
-        authUsers.get(b.localId).customAttributes = b.customAttributes;
+        const au = authUsers.get(b.localId);
+        if (!au) return json({ error: { message: "USER_NOT_FOUND" } }, 400);
+        const { localId, ...resto } = b;
+        if (resto.email && [...authUsers.entries()].some(([k, x]) => k !== localId && x.email === resto.email))
+          return json({ error: { message: "EMAIL_EXISTS" } }, 400);
+        Object.assign(au, resto);
         return json({ localId: b.localId });
       }
       if ([...authUsers.values()].some((x) => x.email === b.email))

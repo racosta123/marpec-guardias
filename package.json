@@ -1,5 +1,6 @@
 {
   "name": "marpec-guardias",
+  "type": "module",
   "private": true,
   "version": "0.1.0",
   "description": "MARPEC Guardias - PWA (Fase 1: base segura). Las dependencias son SOLO de build/test; nada se carga de terceros en tiempo de ejecucion.",
@@ -18,5 +19,8 @@
   },
   "overrides": {
     "@grpc/grpc-js": "^1.14.5"
+  },
+  "dependencies": {
+    "qrcode-generator": "^2.0.4"
   }
 }

@@ -50,23 +50,22 @@
     </section>
   </main>
 
-  <!-- INICIO (guardia / supervisor-admin): vacío, solo para probar el acceso -->
+  <!-- APP (guardia / supervisor / admin) -->
   <div id="vista-inicio" class="screen" hidden>
     <header class="topbar">
       <img src="marpec-logo.png" alt="" width="38" height="40">
-      <h1 id="inicio-titulo">MARPEC</h1>
+      <div class="topbar-id">
+        <h1 id="inicio-titulo">MARPEC</h1>
+        <span class="topbar-quien"><span id="nombre"></span> · <span id="rol" class="rol-mini"></span></span>
+      </div>
       <button id="btn-salir" class="btn secondary" type="button">Salir</button>
     </header>
-    <main class="home-main">
-      <section class="hola">
-        <div class="saludo" id="saludo">Bienvenido</div>
-        <h2 class="nombre" id="nombre"></h2>
-        <span class="rol" id="rol"></span>
-      </section>
-      <p class="vacio" id="vacio"></p>
-    </main>
+    <nav id="tabs-app" class="tabs-app" aria-label="Secciones" hidden></nav>
+    <main class="home-main" id="contenido" tabindex="-1"></main>
     <footer>Lealtad, Honradez, Disciplina · <a href="privacidad.html">Privacidad</a></footer>
   </div>
+
+  <div id="toasts" class="toasts" aria-live="polite"></div>
 
   <p id="cargando" class="vacio" role="status">Cargando…</p>
 

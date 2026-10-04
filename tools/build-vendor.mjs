@@ -1,5 +1,5 @@
 import { build } from "esbuild";
-import { copyFileSync, mkdirSync } from "node:fs";
+import { copyFileSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 
 await build({
   entryPoints: ["tools/firebase-entry.js"],
@@ -11,6 +11,18 @@ await build({
   target: "es2020",
   legalComments: "none",
 });
+
+await build({
+  entryPoints: ["tools/qr-entry.js"],
+  outfile: "js/vendor/qr.js",
+  bundle: true, minify: true, format: "esm", platform: "browser", target: "es2020", legalComments: "none",
+});
+// qrcode-generator no trae archivo LICENSE: se conserva el aviso de copyright de su cabecera (MIT).
+const cab = readFileSync("node_modules/qrcode-generator/dist/qrcode.mjs", "utf8").split(/\r?\n/).slice(0, 16).join("\n");
+writeFileSync(
+  "js/vendor/LICENSE-qrcode-generator.txt",
+  `qrcode-generator (MIT) — https://github.com/kazuhikoarase/qrcode-generator\n\n${cab}\n`,
+);
 
 mkdirSync("fonts", { recursive: true });
 const f = "node_modules/@fontsource";

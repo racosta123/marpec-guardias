@@ -1,22 +1,67 @@
 rules_version = '2';
 
-// DENEGAR TODO por defecto. En la Fase 1 ningún cliente escribe: todo pasa por el Worker
-// (cuenta de servicio, que no se rige por estas reglas).
+// DENEGAR TODO por defecto. Ningún cliente escribe: todo pasa por el Worker (cuenta de servicio,
+// que no se rige por estas reglas). Solo hay lecturas acotadas por rol.
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // Cualquier colección no mencionada abajo (credenciales, ajustes, y las de fases futuras)
-    // queda cerrada para todos los clientes.
+    // ---- funciones ----
+    function perfilPath(uid) { return /databases/$(database)/documents/usuarios/$(uid); }
+    function conSesion() {
+      return request.auth != null && request.auth.token.rol in ['guardia', 'supervisor', 'admin'];
+    }
+    // Cuenta ACTIVA: el perfil existe, está activo y su rol coincide con el claim del token.
+    // Así, dar de baja a alguien corta sus lecturas AL INSTANTE aunque su ID token siga vigente.
+    function activo() {
+      return conSesion()
+        && exists(perfilPath(request.auth.uid))
+        && get(perfilPath(request.auth.uid)).data.activo == true
+        && get(perfilPath(request.auth.uid)).data.rol == request.auth.token.rol;
+    }
+    function esAdmin() { return activo() && request.auth.token.rol == 'admin'; }
+    function esSupervisor() { return activo() && request.auth.token.rol == 'supervisor'; }
+    function esGuardia() { return activo() && request.auth.token.rol == 'guardia'; }
+
+    // Todo lo no mencionado abajo (credenciales, ajustes y colecciones de fases futuras) está cerrado.
     match /{document=**} {
       allow read, write: if false;
     }
 
-    // Perfil público: cada persona lee SOLO el suyo, y solo con un rol válido asignado por el Worker.
+    // Perfiles: cada quien el suyo; el admin todos; el supervisor solo guardias (para asignar turnos).
     match /usuarios/{uid} {
-      allow get: if request.auth != null
-                 && request.auth.uid == uid
-                 && request.auth.token.rol in ['guardia', 'supervisor', 'admin'];
+      allow get: if activo() && (request.auth.uid == uid || esAdmin()
+                    || (esSupervisor() && resource.data.rol == 'guardia'));
+      allow list: if esAdmin() || (esSupervisor() && resource.data.rol == 'guardia');
+      allow create, update, delete: if false;
+    }
+
+    // Sitios: admin todos; supervisor los suyos; guardia solo los de sus turnos vigentes (get, no list).
+    match /sitios/{sitioId} {
+      allow get: if esAdmin()
+                 || (esSupervisor() && resource.data.supervisorUid == request.auth.uid)
+                 || (esGuardia() && sitioId in get(perfilPath(request.auth.uid)).data.get('sitiosAsignados', []));
+      allow list: if esAdmin()
+                  || (esSupervisor() && resource.data.supervisorUid == request.auth.uid);
+      allow create, update, delete: if false;
+    }
+
+    // Turnos: admin todos; supervisor los de sus sitios (supervisorUid denormalizado); guardia solo los suyos.
+    match /turnos/{turnoId} {
+      allow get, list: if esAdmin()
+                       || (esSupervisor() && resource.data.supervisorUid == request.auth.uid)
+                       || (esGuardia() && resource.data.guardiaUid == request.auth.uid);
+      allow create, update, delete: if false;
+    }
+
+    match /configuracion/{docId} {
+      allow get: if esAdmin();
       allow list, create, update, delete: if false;
+    }
+
+    // Bitácora: solo lectura para el admin; inmutable (nadie escribe desde el cliente).
+    match /auditoria/{evtId} {
+      allow get, list: if esAdmin();
+      allow create, update, delete: if false;
     }
   }
 }

@@ -1,6 +1,6 @@
 # Modelo de datos propuesto (fases 2–6)
 
-> Solo diseño. En la Fase 1 únicamente existen `usuarios`, `credenciales` y `ajustes/sistema`.
+> Fase 1: `usuarios`, `credenciales`, `ajustes/sistema`. **Fase 2 (implementada):** `sitios`, `turnos`, `configuracion/empresa`, `auditoria`; `usuarios` gana `sitiosAsignados`. El resto sigue siendo diseño.
 
 ## Principios (no negociables)
 
@@ -40,3 +40,12 @@ El teléfono envía lat/lng/precisión; **el Worker** decide `dentroPerimetro` (
 - Siguen en `allow write: if false` en todas las colecciones.
 - Lecturas: `guardia` → solo documentos con su `guardiaUid`; `supervisor` → documentos cuyo `siteId` esté en su lista de sitios (claim o doc de asignación); `admin` → todo, nunca `credenciales`.
 - Las consultas deben llevar el mismo filtro que la regla (no hay `list` abierto).
+
+## Implementación de la Fase 2 (campos reales)
+
+- `usuarios/{uid}`: nombre, rol, activo, numeroEmpleado | email, **sitiosAsignados[]** (guardia), bajaEn, prueba?
+- `sitios/{id}`: nombre, direccion, cliente, consignas, supervisorUid|null, lat|null, lng|null, precisionM|null, radioM (20–1000, def. 100), qrVersion, activo.
+- `turnos/{id}`: sitioId, sitioNombre, **supervisorUid** (denormalizado para reglas), guardiaUid|null (vacante = sin cubrir), inicioMs, finMs (UTC en ms; se muestran en America/Hermosillo), plantilla (diurno, nocturno, 12x24, 24x24, personalizada), estado (programado|cancelado).
+- `configuracion/empresa`: toleranciaRetardoMin, limiteFaltaMin, retardosPorFalta, zonaHoraria (solo se guarda; la usa la Fase 3).
+- `auditoria/{id}`: actorUid, actorRol, actorNombre, accion, objetivo, detalle, ts (servidor). Solo se crea.
+- Índices compuestos: turnos por (guardiaUid | supervisorUid | sitioId) + inicioMs (`firebase/firestore.indexes.json`).

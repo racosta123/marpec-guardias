@@ -5,4 +5,6 @@ export {
   initializeAuth, indexedDBLocalPersistence, browserLocalPersistence,
   signInWithCustomToken, signInWithEmailAndPassword, onAuthStateChanged, signOut,
 } from "firebase/auth";
-export { getFirestore, doc, getDoc } from "firebase/firestore";
+export {
+  getFirestore, doc, getDoc, collection, getDocs, query, where, orderBy, limit,
+} from "firebase/firestore";

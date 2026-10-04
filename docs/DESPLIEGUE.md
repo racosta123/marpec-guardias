@@ -43,3 +43,12 @@ Se reclama de forma atómica: la segunda llamada responde `404` para siempre. De
 ## Reconstruir lo vendorizado
 
 `npm install && npm run build:vendor` regenera `js/vendor/firebase.js` y `fonts/` desde `node_modules` (solo desarrollo; no se carga nada de terceros en ejecución).
+
+## Fase 2 — pasos de despliegue
+
+1. Respaldo previo: `node tools/respaldar-firestore.mjs` (queda en `.tools/respaldos/`, ignorado por git).
+2. Secret nuevo del Worker: `node tools/rotate-secrets.mjs qr` (genera `QR_SECRET` aleatorio; no se muestra).
+3. Reglas e índices: `firebase deploy --only firestore --project marpec-guardias` (esperar a que los índices queden en estado *Enabled*).
+4. Worker: `cd worker && npx wrangler deploy`. Frontend: push a `main` (GitHub Pages).
+5. Verificación en real: `node tools/e2e-real-fase2.mjs <uid-admin>`.
+6. Antes de entregar a MARPEC: `node tools/borrar-pruebas.mjs --aplicar`.

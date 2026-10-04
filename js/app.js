@@ -4,18 +4,54 @@ import {
   onAuthStateChanged, signOut, getFirestore, doc, getDoc,
 } from "./vendor/firebase.js";
 import { config } from "./config.js";
+import { crearApi } from "./api.js";
+import { h, limpiar } from "./ui.js";
+import { vistaGuardia } from "./vistas/guardia.js";
+import { vistaPersonal } from "./vistas/personal.js";
+import { vistaSitios } from "./vistas/sitios.js";
+import { vistaTurnos } from "./vistas/turnos.js";
+import { vistaEmpresa } from "./vistas/empresa.js";
+import { vistaBitacora } from "./vistas/bitacora.js";
 
 const app = initializeApp(config.firebase);
 const auth = initializeAuth(app, { persistence: [indexedDBLocalPersistence, browserLocalPersistence] });
 const db = getFirestore(app);
+const api = crearApi(auth);
 
 const $ = (id) => document.getElementById(id);
 const vistas = { login: $("vista-login"), inicio: $("vista-inicio") };
 const ROLES = {
-  guardia: { etiqueta: "Guardia", titulo: "MARPEC · Guardia", vacio: "Aquí aparecerán tus turnos, rondines y registros. (Fase 1: solo acceso)" },
-  supervisor: { etiqueta: "Supervisor", titulo: "MARPEC · Supervisión", vacio: "Aquí aparecerá el panel de supervisión. (Fase 1: solo acceso)" },
-  admin: { etiqueta: "Administrador", titulo: "MARPEC · Administración", vacio: "Aquí aparecerá el panel de administración. (Fase 1: solo acceso)" },
+  guardia: { etiqueta: "Guardia", titulo: "MARPEC · Guardia" },
+  supervisor: { etiqueta: "Supervisor", titulo: "MARPEC · Supervisión" },
+  admin: { etiqueta: "Administrador", titulo: "MARPEC · Administración" },
 };
+
+// Secciones por rol. El supervisor solo ve turnos y sitios propios; el resto es del admin.
+const SECCIONES = {
+  supervisor: [["turnos", "Turnos", vistaTurnos], ["sitios", "Mis sitios", vistaSitios]],
+  admin: [["turnos", "Turnos", vistaTurnos], ["sitios", "Sitios", vistaSitios], ["personal", "Personal", vistaPersonal], ["empresa", "Empresa", vistaEmpresa], ["bitacora", "Bitácora", vistaBitacora]],
+};
+
+async function montarApp(ctx) {
+  const raiz = $("contenido");
+  const nav = $("tabs-app");
+  const secciones = SECCIONES[ctx.user.rol];
+  nav.hidden = !secciones;
+  limpiar(nav);
+  const abrir = async (clave) => {
+    for (const b of nav.children) b.setAttribute("aria-current", String(b.dataset.clave === clave));
+    const s = secciones.find((x) => x[0] === clave);
+    try { await s[2](raiz, ctx); }
+    catch { limpiar(raiz); raiz.append(h("p", { class: "error" }, "No fue posible cargar esta sección. Intenta de nuevo.")); }
+  };
+  if (!secciones) {
+    try { await vistaGuardia(raiz, ctx); } catch { limpiar(raiz); raiz.append(h("p", { class: "error" }, "No fue posible cargar tu turno.")); }
+    return;
+  }
+  for (const [clave, etiqueta] of secciones)
+    nav.append(h("button", { type: "button", class: "tab-app", "data-clave": clave, onclick: () => abrir(clave) }, etiqueta));
+  await abrir(secciones[0][0]);
+}
 
 function mostrar(nombre) {
   $("cargando").hidden = true;
@@ -107,6 +143,8 @@ $("btn-salir").addEventListener("click", () => signOut(auth));
 // ---- Estado de sesión ----
 onAuthStateChanged(auth, async (user) => {
   if (!user) {
+    limpiar($("contenido"));
+    limpiar($("tabs-app"));
     mostrar("login");
     return;
   }
@@ -128,8 +166,8 @@ onAuthStateChanged(auth, async (user) => {
     $("inicio-titulo").textContent = info.titulo;
     $("nombre").textContent = snap.data().nombre;
     $("rol").textContent = info.etiqueta;
-    $("vacio").textContent = info.vacio;
     mostrar("inicio");
+    await montarApp({ db, api, auth, user: { uid: user.uid, rol: claims.rol, nombre: snap.data().nombre } });
   } catch {
     await signOut(auth).catch(() => {});
     error("No fue posible validar tu acceso. Intenta de nuevo.");
