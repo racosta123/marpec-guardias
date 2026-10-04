@@ -1,6 +1,6 @@
 // Busca secretos en el árbol de trabajo y en TODO el historial de git. Sale con código 1 si encuentra algo.
 import { execSync } from "node:child_process";
-import { readFileSync, readdirSync, statSync } from "node:fs";
+import { existsSync, readFileSync, readdirSync, statSync } from "node:fs";
 import { join } from "node:path";
 
 const PATRONES = [
@@ -20,8 +20,16 @@ const SKIP_DIR = new Set(["node_modules", ".git", ".wrangler"]);
 const SKIP_FILE = /\.(png|woff2|ico)$|(^|\/)package-lock\.json$|js\/vendor\/firebase\.js$|tools\/scan-secrets\.mjs$|worker\/test\/|js\/config\.js$/; // config.js: apiKey web pública por diseño
 let hallazgos = 0;
 
+// La apiKey web de Firebase (en js/config.js) es pública por diseño: se permite solo esa.
+const PUBLICAS = new Set(
+  [...(existsSync("js/config.js") ? readFileSync("js/config.js", "utf8") : "").matchAll(/AIza[0-9A-Za-z_-]{35}/g)].map((m) => m[0]));
+
 function revisar(nombre, texto) {
-  for (const [re, desc] of PATRONES) if (re.test(texto)) { console.log(`HALLAZGO ${desc}: ${nombre}`); hallazgos++; }
+  for (const [re, desc] of PATRONES) {
+    const g = new RegExp(re.source, "g");
+    const reales = [...texto.matchAll(g)].filter((m) => !PUBLICAS.has(m[0]));
+    if (reales.length) { console.log(`HALLAZGO ${desc}: ${nombre}`); hallazgos++; }
+  }
 }
 
 function recorrer(dir) {

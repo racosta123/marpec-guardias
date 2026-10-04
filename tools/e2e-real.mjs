@@ -11,7 +11,7 @@ import { join } from "node:path";
 
 const PROJECT = "marpec-guardias";
 const W = "https://marpec-guardias-proxy.acosta4770.workers.dev";
-const KEY = "AIzaSyC5cCkRMuf4z1RkkTTL_MAu8QkO0PgIXWY"; // apiKey web (pública)
+const KEY = /apiKey:\s*"([^"]+)"/.exec(readFileSync("js/config.js", "utf8"))[1]; // apiKey web (pública)
 const ORIGIN = "https://racosta123.github.io";
 const SA = `marpec-worker@${PROJECT}.iam.gserviceaccount.com`;
 const FS = `https://firestore.googleapis.com/v1/projects/${PROJECT}/databases/(default)/documents`;
