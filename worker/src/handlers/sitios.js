@@ -49,7 +49,7 @@ export async function crearSitio(env, request) {
   const sid = randomId(8);
   await commit(env, [
     { path: `sitios/${sid}`, data: { ...campos, qrVersion: 1, activo: true, ...(b.prueba === true ? { prueba: true } : {}) }, mustNotExist: true, serverTimeField: "creadoEn" },
-    auditoria(actor, "sitio.alta", sid, { nombre: campos.nombre, supervisorUid: campos.supervisorUid }),
+    auditoria(actor, "sitio.alta", sid, { nombre: campos.nombre, supervisorUid: campos.supervisorUid }, { prueba: b.prueba === true }),
   ]);
   return { status: 201, body: { ok: true, id: sid } };
 }
@@ -67,7 +67,7 @@ export async function actualizarSitio(env, request) {
   const { supervisorUid, ...resto } = campos;
   await commit(env, [
     { path: `sitios/${sid}`, data: cambiaSup ? { ...resto, supervisorUid } : resto, merge: true, mustExist: true },
-    auditoria(actor, "sitio.editar", sid, campos),
+    auditoria(actor, "sitio.editar", sid, campos, actual),
   ]);
   if (cambiaSup) await reasignarSupervisor(env, sid, campos.supervisorUid);
   return { status: 200, body: { ok: true } };
@@ -83,7 +83,7 @@ export async function regenerarQr(env, request) {
   const nueva = (s.qrVersion || 1) + 1;
   await commit(env, [
     { path: `sitios/${sid}`, data: { qrVersion: nueva }, merge: true, mustExist: true },
-    auditoria(actor, "sitio.qr_regenerado", sid, { version: nueva }),
+    auditoria(actor, "sitio.qr_regenerado", sid, { version: nueva }, s),
   ]);
   return { status: 200, body: { ok: true, version: nueva } };
 }

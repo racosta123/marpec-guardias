@@ -35,8 +35,7 @@ export async function authenticate(env, request) {
   if (!ROLES.includes(claims.rol)) throw new HttpError(403, "forbidden");
   const perfil = await getDocument(env, `usuarios/${claims.sub}`);
   if (!perfil || perfil.activo !== true || perfil.rol !== claims.rol) throw new HttpError(403, "forbidden");
-  // Cabecera x-prueba: la usan SOLO los scripts de prueba para marcar sus entradas de bitácora.
-  return { uid: claims.sub, rol: claims.rol, perfil, prueba: request.headers.get("x-prueba") === "1" };
+  return { uid: claims.sub, rol: claims.rol, perfil };
 }
 
 export const requireRol = (actor, ...roles) => {
@@ -91,11 +90,14 @@ export function randomId(bytes = 10) {
 // ---- auditoría inmutable ----------------------------------------------------
 // Devuelve una escritura para incluir en el MISMO commit que el cambio (atómico).
 // Solo se crea: ni el Worker ni las reglas permiten actualizar o borrar auditoría.
-export function auditoria(actor, accion, objetivo, detalle = {}) {
+// `prueba` lo decide el SERVIDOR: la entrada se marca solo si el actor o el registro afectado YA tiene
+// prueba=true en Firestore. Nunca depende de cabeceras ni de datos que envíe el cliente.
+export function auditoria(actor, accion, objetivo, detalle = {}, registroAfectado = null) {
+  const marcar = actor.perfil.prueba === true || registroAfectado?.prueba === true;
   const limpio = JSON.stringify(detalle, (k, v) => (/pin|password|hash|salt|secret|token/i.test(k) ? undefined : v)).slice(0, 900);
   return {
     path: `auditoria/${Date.now().toString(36)}-${randomId(6)}`,
-    data: { actorUid: actor.uid, actorRol: actor.rol, actorNombre: actor.perfil.nombre, accion, objetivo, detalle: limpio, ...(actor.prueba ? { prueba: true } : {}) },
+    data: { actorUid: actor.uid, actorRol: actor.rol, actorNombre: actor.perfil.nombre, accion, objetivo, detalle: limpio, ...(marcar ? { prueba: true } : {}) },
     mustNotExist: true,
     serverTimeField: "ts",
   };

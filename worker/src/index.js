@@ -44,7 +44,7 @@ function corsHeaders(env, origin) {
     return {
       "access-control-allow-origin": origin,
       "access-control-allow-methods": "GET, POST, OPTIONS",
-      "access-control-allow-headers": "authorization, content-type, x-setup-token, x-prueba",
+      "access-control-allow-headers": "authorization, content-type, x-setup-token",
       "access-control-max-age": "600",
       vary: "Origin",
     };

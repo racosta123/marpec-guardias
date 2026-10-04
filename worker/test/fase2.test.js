@@ -378,13 +378,54 @@ test("un token de admin ya dado de baja ya no funciona (perfil inactivo)", async
   assert.equal((await api("POST", "/admin/sitios", A, { nombre: "X" })).status, 403);
 });
 
-test("bitácora: las entradas de pruebas llevan prueba=true (cabecera x-prueba); las normales no", async () => {
-  const { A } = await mundo();
-  await api("POST", "/admin/sitios", A, { nombre: "Real" });
-  await api("POST", "/admin/sitios", A, { nombre: "De prueba" }, "1.1.1.1", { "x-prueba": "1" });
-  await api("POST", "/admin/config", A, { toleranciaRetardoMin: 5, limiteFaltaMin: 20, retardosPorFalta: 2 }, "1.1.1.1", { "x-prueba": "1" });
-  const logs = docsDe("auditoria");
-  const marcadas = logs.filter((l) => l.prueba === true).map((l) => l.accion).sort();
-  assert.deepEqual(marcadas, ["config.guardar", "sitio.alta"]);
-  assert.equal(logs.filter((l) => l.prueba !== true).length, 1, "la acción sin cabecera queda sin marcar");
+test("bitácora: la marca prueba la decide el SERVIDOR (actor o registro afectado), nunca la cabecera x-prueba", async () => {
+  const { A, mkSitio } = await mundo();
+  const mkSup = async (email, prueba) => {
+    const r = await api("POST", "/admin/usuarios", A, { rol: "supervisor", nombre: "Sup " + email, email, password: PASS, ...(prueba ? { prueba: true } : {}) });
+    return r.body.uid;
+  };
+  const real = await mkSup("real@marpec.mx", false);
+  const prueba = await mkSup("prueba@marpec.mx", true);
+  const sitioReal = await mkSitio("Sitio real", real);
+  const sitioPrueba = (await api("POST", "/admin/sitios", A, { nombre: "Sitio prueba", supervisorUid: prueba, prueba: true })).body.id;
+  const T = (uid) => w.idToken(uid, "supervisor");
+  const X = { "x-prueba": "1" };
+  const n0 = docsDe("auditoria").length;
+  const nuevas = () => docsDe("auditoria").slice(n0);
+
+  // 1) Supervisor REAL que envía x-prueba (en cabecera y en el cuerpo): bitácora SIN marca
+  const r1 = await api("POST", "/turnos/asignar-lote", await T(real), { sitioId: sitioReal, plantilla: "diurno", desde: enDias(5), hasta: enDias(5), prueba: true }, "1.1.1.1", X);
+  assert.equal(r1.status, 201);
+  const turnoReal = docsDe("turnos").find((x) => x.sitioId === sitioReal);
+  assert.equal(turnoReal.prueba, undefined, "el cuerpo no puede marcar los turnos como prueba");
+  const e1 = nuevas().filter((x) => x.accion === "turnos.crear");
+  assert.equal(e1.length, 1);
+  assert.equal(e1[0].prueba, undefined, "x-prueba no esconde la bitácora de un supervisor real");
+  assert.equal((await api("POST", "/turnos/cancelar", await T(real), { turnoId: turnoReal.id }, "1.1.1.1", X)).status, 200);
+  assert.ok(nuevas().filter((x) => x.actorUid === real).every((x) => x.prueba === undefined));
+
+  // 2) Actor con perfil prueba=true → marcada
+  assert.equal((await api("POST", "/turnos/asignar-lote", await T(prueba), { sitioId: sitioPrueba, plantilla: "diurno", desde: enDias(6), hasta: enDias(6) })).status, 201);
+  assert.ok(nuevas().filter((x) => x.actorUid === prueba).every((x) => x.prueba === true));
+  assert.equal(docsDe("turnos").find((x) => x.sitioId === sitioPrueba).prueba, true, "los turnos heredan prueba del sitio");
+
+  // 3) Registro afectado con prueba=true (actor admin REAL) → marcada; registro real → no
+  const antes = nuevas().length;
+  await api("POST", "/admin/sitios/actualizar", A, { id: sitioPrueba, consignas: "x" });
+  await api("POST", "/admin/sitios/actualizar", A, { id: sitioReal, consignas: "y" });
+  await api("POST", "/admin/sitios/regenerar-qr", A, { id: sitioPrueba });
+  const e3 = nuevas().slice(antes);
+  assert.equal(e3.find((x) => x.accion === "sitio.editar" && x.objetivo === sitioPrueba).prueba, true);
+  assert.equal(e3.find((x) => x.accion === "sitio.editar" && x.objetivo === sitioReal).prueba, undefined);
+  assert.equal(e3.find((x) => x.accion === "sitio.qr_regenerado").prueba, true);
+  // baja de un usuario de prueba (admin real) → marcada; baja de un usuario real → no
+  await api("POST", "/admin/usuarios/baja", A, { uid: prueba });
+  await api("POST", "/admin/usuarios/baja", A, { uid: real });
+  const bajas = nuevas().filter((x) => x.accion === "personal.baja");
+  assert.equal(bajas.find((x) => x.objetivo === prueba).prueba, true);
+  assert.equal(bajas.find((x) => x.objetivo === real).prueba, undefined);
+  // 4) la cabecera ya no se usa en ningún sitio del Worker
+  const fuente = (await import("node:fs")).readFileSync(new URL("../src/common.js", import.meta.url), "utf8")
+    + (await import("node:fs")).readFileSync(new URL("../src/index.js", import.meta.url), "utf8");
+  assert.ok(!/x-prueba/i.test(fuente), "el Worker no referencia x-prueba");
 });

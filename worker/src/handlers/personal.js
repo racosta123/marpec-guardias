@@ -50,7 +50,7 @@ export async function crearUsuario(env, request) {
         mustNotExist: true,
         serverTimeField: "creadoEn",
       },
-      auditoria(actor, "personal.alta", uid, { rol: "guardia", nombre, numeroEmpleado: numero }),
+      auditoria(actor, "personal.alta", uid, { rol: "guardia", nombre, numeroEmpleado: numero }, extra),
     ]);
     return { status: 201, body: { ok: true, uid } };
   }
@@ -62,7 +62,7 @@ export async function crearUsuario(env, request) {
     try {
       await commit(env, [
         { path: `usuarios/${uid}`, data: { nombre, rol: "supervisor", activo: true, email, ...extra }, mustNotExist: true, serverTimeField: "creadoEn" },
-        auditoria(actor, "personal.alta", uid, { rol: "supervisor", nombre, email }),
+        auditoria(actor, "personal.alta", uid, { rol: "supervisor", nombre, email }, extra),
       ]);
     } catch (e) {
       await deleteAuthUser(env, uid).catch(() => {});
@@ -92,7 +92,7 @@ export async function actualizarUsuario(env, request) {
   });
   await commit(env, [
     { path: `usuarios/${uid}`, data: cambios, merge: true, mustExist: true },
-    auditoria(actor, "personal.editar", uid, cambios),
+    auditoria(actor, "personal.editar", uid, cambios, t),
   ]);
   return { status: 200, body: { ok: true } };
 }
@@ -108,7 +108,7 @@ export async function bajaUsuario(env, request) {
 
   const writes = [
     { path: `usuarios/${uid}`, data: { activo: false }, merge: true, mustExist: true, serverTimeField: "bajaEn" },
-    auditoria(actor, "personal.baja", uid, { rol: t.rol, nombre: t.nombre }),
+    auditoria(actor, "personal.baja", uid, { rol: t.rol, nombre: t.nombre }, t),
   ];
   if (t.rol === "guardia") {
     writes.push({ path: `credenciales/${t.numeroEmpleado}`, data: { activo: false }, merge: true });
@@ -140,7 +140,7 @@ export async function reactivarUsuario(env, request) {
   await setAuthUserState(env, uid, { disabled: false });
   const writes = [
     { path: `usuarios/${uid}`, data: { activo: true }, merge: true, mustExist: true },
-    auditoria(actor, "personal.reactivar", uid, { rol: t.rol }),
+    auditoria(actor, "personal.reactivar", uid, { rol: t.rol }, t),
   ];
   if (t.rol === "guardia") writes.push({ path: `credenciales/${t.numeroEmpleado}`, data: { activo: true }, merge: true });
   await commit(env, writes);
@@ -159,7 +159,7 @@ export async function restablecerPin(env, request) {
   const hash = await hashPin(pin, salt, env.PIN_PEPPER);
   await commit(env, [
     { path: `credenciales/${numero}`, data: { hash, salt, iterations: PBKDF2_ITERATIONS }, merge: true, mustExist: true },
-    auditoria(actor, "personal.pin_restablecido", cred.uid, { numero }),
+    auditoria(actor, "personal.pin_restablecido", cred.uid, { numero }, cred),
   ]);
   await limiter(env, `emp:${numero}`, "reset", EMP_LIMIT);
   return { status: 200, body: { ok: true } };
@@ -173,6 +173,6 @@ export async function desbloquearPin(env, request) {
   const cred = await getDocument(env, `credenciales/${numero}`);
   if (!cred) throw new HttpError(404, "not_found");
   await limiter(env, `emp:${numero}`, "reset", EMP_LIMIT);
-  await commit(env, [auditoria(actor, "personal.pin_desbloqueado", cred.uid, { numero })]);
+  await commit(env, [auditoria(actor, "personal.pin_desbloqueado", cred.uid, { numero }, cred)]);
   return { status: 200, body: { ok: true } };
 }

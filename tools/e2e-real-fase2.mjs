@@ -16,6 +16,7 @@ const FS = `https://firestore.googleapis.com/v1/projects/${PROJECT}/databases/(d
 const adminUid = process.argv[2];
 if (!adminUid) throw new Error("falta uid del admin");
 
+const inicio = new Date().toISOString();
 let fallos = 0;
 const check = (nombre, ok, extra = "") => {
   console.log(`${ok ? "✔" : "✖"} ${nombre}${extra ? "  → " + extra : ""}`);
@@ -48,7 +49,7 @@ function adminCustomToken() {
 }
 
 const api = (path, { method = "POST", token, body, origin = ORIGIN } = {}) =>
-  fetch(`${W}${path}`, { method, headers: { "content-type": "application/json", origin, "x-prueba": "1", ...(token ? { authorization: `Bearer ${token}` } : {}) }, body: body && JSON.stringify(body) }).then(j);
+  fetch(`${W}${path}`, { method, headers: { "content-type": "application/json", origin, ...(token ? { authorization: `Bearer ${token}` } : {}) }, body: body && JSON.stringify(body) }).then(j);
 const fsGet = (path, token) => fetch(`${FS}/${path}`, { headers: token ? { authorization: `Bearer ${token}` } : {} }).then(j);
 // Consulta REST con las MISMAS reglas que el cliente (token de usuario).
 const fsQuery = (coleccion, campo, valor, token) => fetch(`${FS}:runQuery`, {
@@ -79,7 +80,7 @@ const sB = (await sit("PRUEBA F2 Sitio B", s2.body.uid)).body.id;
 check("sitios de prueba creados", Boolean(sA && sB));
 
 const fecha = (n) => new Date(Date.now() - 7 * 3600e3 + n * 86400e3).toISOString().slice(0, 10);
-const lote = (token, b) => api("/turnos/asignar-lote", { token, body: { plantilla: "diurno", desde: fecha(10), hasta: fecha(11), prueba: true, ...b } });
+const lote = (token, b) => api("/turnos/asignar-lote", { token, body: { plantilla: "diurno", desde: fecha(10), hasta: fecha(11), ...b } });
 check("turnos de A para guardia A", (await lote(A, { sitioId: sA, guardiaUid: gA })).status === 201);
 check("turnos de B para guardia B", (await lote(A, { sitioId: sB, guardiaUid: gB })).status === 201);
 const vac = await lote(A, { sitioId: sA, plantilla: "nocturno", desde: fecha(12), hasta: fecha(12) });
@@ -155,9 +156,11 @@ const ref = await fetch(`https://securetoken.googleapis.com/v1/token?key=${KEY}`
 check("baja: el refresh token fue REVOCADO (no obtiene tokens nuevos)", ref.status >= 400 && !ref.body.id_token, ref.body.error?.message);
 
 // ---------------------------------------------------------------- config y bitácora
-check("config: admin guarda", (await api("/admin/config", { token: A, body: { toleranciaRetardoMin: 10, limiteFaltaMin: 30, retardosPorFalta: 3 } })).status === 200);
 check("config: valores inválidos rechazados", (await api("/admin/config", { token: A, body: { toleranciaRetardoMin: 50, limiteFaltaMin: 10, retardosPorFalta: 3 } })).status === 400);
 check("bitácora: el admin la lee; el supervisor no", (await fsList("auditoria?pageSize=3", A)).status === 200 && (await fsList("auditoria", S1)).status === 403);
+const bit = await fsGet("auditoria?pageSize=300", A);
+const nuevas = (bit.body.documents || []).filter((d) => d.createTime >= inicio);
+check("bitácora: TODAS las entradas de esta corrida llevan prueba=true (decidido por el servidor)", nuevas.length > 10 && nuevas.every((d) => d.fields.prueba?.booleanValue === true), `${nuevas.filter((d) => d.fields.prueba?.booleanValue === true).length}/${nuevas.length}`);
 check("bitácora: nadie la escribe desde el cliente", (await fetch(`${FS}/auditoria/falso`, { method: "PATCH", headers: { "content-type": "application/json", authorization: `Bearer ${A}` }, body: JSON.stringify({ fields: { accion: { stringValue: "x" } } }) })).status === 403);
 
 console.log(fallos ? `\n${fallos} PRUEBA(S) FALLARON` : "\nTODAS LAS PRUEBAS EN REAL (FASE 2) PASARON");

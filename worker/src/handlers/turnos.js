@@ -52,10 +52,10 @@ export async function asignarLote(env, request) {
     id: `t-${t.inicioMs.toString(36)}-${randomId(4)}`,
     sitioId, sitioNombre: sitio.nombre, supervisorUid: sitio.supervisorUid ?? null, guardiaUid,
     inicioMs: t.inicioMs, finMs: t.finMs, plantilla: b.plantilla, estado: "programado",
-    ...(b.prueba === true ? { prueba: true } : {}),
+    ...(sitio.prueba === true ? { prueba: true } : {}), // hereda del sitio (decisión del servidor)
   }));
   const writes = docs.map(({ id, ...data }) => ({ path: `turnos/${id}`, data, mustNotExist: true, serverTimeField: "creadoEn" }));
-  writes.push(auditoria(actor, "turnos.crear", sitioId, { plantilla: b.plantilla, desde: b.desde, hasta: b.hasta, n: docs.length, guardiaUid }));
+  writes.push(auditoria(actor, "turnos.crear", sitioId, { plantilla: b.plantilla, desde: b.desde, hasta: b.hasta, n: docs.length, guardiaUid }, sitio));
   await commit(env, writes);
   if (guardiaUid) await recalcularSitiosAsignados(env, guardiaUid, { ahora, turnos: [...existentes, ...docs] });
   return { status: 201, body: { ok: true, creados: docs.length } };
@@ -82,7 +82,7 @@ export async function asignarTurno(env, request) {
   }
   await commit(env, [
     { path: `turnos/${turnoId}`, data: { guardiaUid: nuevoGuardia }, merge: true, mustExist: true },
-    auditoria(actor, "turno.asignar", turnoId, { de: t.guardiaUid ?? null, a: nuevoGuardia }),
+    auditoria(actor, "turno.asignar", turnoId, { de: t.guardiaUid ?? null, a: nuevoGuardia }, t),
   ]);
   if (t.guardiaUid && t.guardiaUid !== nuevoGuardia) await recalcularSitiosAsignados(env, t.guardiaUid);
   if (nuevoGuardia) await recalcularSitiosAsignados(env, nuevoGuardia);
@@ -101,7 +101,7 @@ export async function cancelarTurno(env, request) {
   if (t.inicioMs <= Date.now()) throw new HttpError(409, "turno_iniciado", "El turno ya inició o terminó.");
   await commit(env, [
     { path: `turnos/${turnoId}`, data: { estado: "cancelado" }, merge: true, mustExist: true },
-    auditoria(actor, "turno.cancelar", turnoId, { sitioId: t.sitioId, guardiaUid: t.guardiaUid ?? null }),
+    auditoria(actor, "turno.cancelar", turnoId, { sitioId: t.sitioId, guardiaUid: t.guardiaUid ?? null }, t),
   ]);
   if (t.guardiaUid) await recalcularSitiosAsignados(env, t.guardiaUid);
   return { status: 200, body: { ok: true } };
