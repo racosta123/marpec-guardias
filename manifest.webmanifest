@@ -1,4 +1,5 @@
 {
+  "id": "/marpec-guardias/",
   "name": "MARPEC Guardias",
   "short_name": "MARPEC",
   "description": "MARPEC Seguridad Privada — control de guardias.",
@@ -7,9 +8,12 @@
   "scope": "./",
   "display": "standalone",
   "orientation": "portrait",
-  "background_color": "#F3F4F7",
+  "background_color": "#F7F7F7",
   "theme_color": "#1B2A55",
+  "prefer_related_applications": false,
   "icons": [
-    { "src": "marpec-logo.png", "sizes": "211x225", "type": "image/png", "purpose": "any" }
+    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icons/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
   ]
 }
