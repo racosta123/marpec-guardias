@@ -17,7 +17,7 @@ const PATRONES = [
   [/(SETUP_TOKEN|PIN_PEPPER)\s*[=:]\s*["']?[A-Za-z0-9+/=_-]{16,}/, "secret del Worker en claro"],
 ];
 const SKIP_DIR = new Set(["node_modules", ".git", ".wrangler"]);
-const SKIP_FILE = /\.(png|woff2|ico)$|(^|\/)package-lock\.json$|js\/vendor\/firebase\.js$|tools\/scan-secrets\.mjs$|worker\/test\//;
+const SKIP_FILE = /\.(png|woff2|ico)$|(^|\/)package-lock\.json$|js\/vendor\/firebase\.js$|tools\/scan-secrets\.mjs$|worker\/test\/|js\/config\.js$/; // config.js: apiKey web pública por diseño
 let hallazgos = 0;
 
 function revisar(nombre, texto) {
@@ -38,7 +38,7 @@ recorrer(".");
 try {
   const commits = execSync("git rev-list --all", { encoding: "utf8" }).split("\n").filter(Boolean);
   for (const c of commits) {
-    const diff = execSync(`git show --format= --unified=0 ${c} -- . ":(exclude)worker/test" ":(exclude)tools/scan-secrets.mjs" ":(exclude)js/vendor" ":(exclude)package-lock.json" ":(exclude)*.png" ":(exclude)*.woff2"`, { encoding: "utf8", maxBuffer: 256 * 1024 * 1024 });
+    const diff = execSync(`git show --format= --unified=0 ${c} -- . ":(exclude)worker/test" ":(exclude)tools/scan-secrets.mjs" ":(exclude)js/vendor" ":(exclude)js/config.js" ":(exclude)package-lock.json" ":(exclude)*.png" ":(exclude)*.woff2"`, { encoding: "utf8", maxBuffer: 256 * 1024 * 1024 });
     revisar(`commit ${c.slice(0, 8)}`, diff);
   }
   console.log(`historial git revisado: ${commits.length} commit(s)`);
