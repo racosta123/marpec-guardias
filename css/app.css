@@ -202,3 +202,14 @@ hr { border: 0; border-top: 1px solid var(--line); margin: 14px 0; }
 .qr-acciones { display: flex; gap: 10px; justify-content: center; margin-top: 18px; flex-wrap: wrap; }
 .qr-acciones .btn { width: auto; display: inline-flex; align-items: center; margin: 0; padding: 0 22px; text-decoration: none; }
 @media print { .no-print { display: none !important; } .qr-hoja { padding: 0; } .qr-contenedor { width: 14cm; } body { background: #fff; } }
+
+/* ---- Botón / aviso de instalación de la PWA ---- */
+.instalar { margin: 14px 0 0; }
+.instalar:empty { display: none; }
+.instalar-btn { margin-top: 0 !important; }
+.instalar-barra { margin: 0; padding: 10px 16px; background: var(--navy); }
+.instalar-barra .instalar-btn { max-width: 420px; margin: 0 auto !important; display: block; }
+.instalar-ios { display: flex; align-items: flex-start; gap: 8px; text-align: left; background: #fff6e6; border-left: 4px solid var(--amber); border-radius: 8px; padding: 10px 12px; font-size: .95rem; }
+.instalar-ios p { margin: 0; flex: 1; }
+.instalar-barra .instalar-ios { max-width: 520px; margin: 0 auto; }
+.icono-compartir { display: inline-block; border: 1.5px solid var(--navy); border-radius: 4px; padding: 0 4px; line-height: 1.2; font-weight: 700; }
