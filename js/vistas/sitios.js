@@ -31,6 +31,7 @@ export async function vistaSitios(raiz, ctx) {
       h("span", { class: "sub" }, [s.cliente, s.direccion].filter(Boolean).join(" · ") || "Sin dirección"),
       esAdmin ? h("span", { class: "sub" }, `Supervisor: ${nombreSup(s.supervisorUid)}`) : null,
       h("span", { class: "sub" }, s.lat == null ? "Ubicación: sin capturar" : `Ubicación: ${s.lat.toFixed(5)}, ${s.lng.toFixed(5)}${s.precisionM != null ? ` (±${Math.round(s.precisionM)} m)` : ""} · Radio ${s.radioM} m`),
+      s.telefonoEmergencia ? h("span", { class: "sub" }, `Teléfono de emergencia: ${s.telefonoEmergencia}`) : null,
       s.consignas ? h("p", { class: "consignas" }, h("b", {}, "Consignas: "), s.consignas) : null,
       s.activo === false ? h("span", { class: "etq mal" }, "Inactivo") : null),
     h("div", { class: "item-acc" },
@@ -62,6 +63,7 @@ export async function vistaSitios(raiz, ctx) {
       h("option", { value: "" }, "— Sin supervisor —"),
       supervisores.map((x) => h("option", { value: x.uid }, x.nombre)));
     const consignas = h("textarea", { rows: 5, maxlength: 2000 }, s?.consignas || "");
+    const telefono = h("input", { type: "tel", maxlength: 20, value: s?.telefonoEmergencia || "", placeholder: "662 123 4567", autocomplete: "off" });
     const lat = h("input", { type: "text", inputmode: "decimal", value: s?.lat ?? "", placeholder: "29.07290" });
     const lng = h("input", { type: "text", inputmode: "decimal", value: s?.lng ?? "", placeholder: "-110.95590" });
     const radio = h("input", { type: "number", min: 20, max: 1000, step: 1, value: s?.radioM ?? 100, required: true });
@@ -95,6 +97,7 @@ export async function vistaSitios(raiz, ctx) {
     const f = h("form", { class: "form", novalidate: true },
       campo("Nombre del sitio", nombre), campo("Cliente", cliente), campo("Dirección", direccion),
       campo("Supervisor asignado", sup), campo("Consignas del puesto", consignas, "Lo verá el guardia al iniciar su turno."),
+      campo("Teléfono de emergencia del sitio", telefono, "Es el número que el guardia puede marcar desde el botón de pánico cuando no hay internet (normalmente el del supervisor)."),
       h("fieldset", { class: "ubicacion" }, h("legend", {}, "Ubicación y perímetro"),
         btnGps, estadoGps,
         h("div", { class: "dos" }, campo("Latitud", lat), campo("Longitud", lng)),
@@ -105,7 +108,7 @@ export async function vistaSitios(raiz, ctx) {
 
     f.addEventListener("submit", async (e) => {
       e.preventDefault();
-      const body = { nombre: nombre.value, cliente: cliente.value, direccion: direccion.value, consignas: consignas.value, supervisorUid: sup.value || null, radioM: Number(radio.value) };
+      const body = { nombre: nombre.value, cliente: cliente.value, direccion: direccion.value, consignas: consignas.value, telefonoEmergencia: telefono.value, supervisorUid: sup.value || null, radioM: Number(radio.value) };
       const la = lat.value.trim(), lo = lng.value.trim();
       if (la || lo) {
         const nla = Number(la.replace(",", ".")), nlo = Number(lo.replace(",", "."));

@@ -1,11 +1,10 @@
 // Asistente para marcar ENTRADA o SALIDA: 1) ubicación, 2) QR del puesto, 3) selfie en vivo, 4) envío.
 // El Worker repite y decide todas las verificaciones; aquí solo se guía al guardia.
 import {
-  abrirCamara, capturarSelfie, detener, distanciaM, escanearQr, hayConexion, mostrarEnVideo, pedirUbicacion,
+  abrirCamara, capturarSelfie, detener, distanciaM, escanearQr, mostrarEnVideo, pedirUbicacion,
 } from "../camara.js";
+import { enviarRegistro } from "../envio.js";
 import { campo, h, limpiar, poner, toast } from "../ui.js";
-
-const SIN_CONEXION = "Sin conexión, intenta de nuevo.";
 
 // turno: { id, sitioId, sitioNombre }, sitio: { lat, lng, radioM } | null
 export function abrirMarcado({ tipo, turno, sitio, api, alTerminar }) {
@@ -47,7 +46,7 @@ export function abrirMarcado({ tipo, turno, sitio, api, alTerminar }) {
         h("li", {}, h("b", {}, "QR del puesto: "), "escanéalo con la cámara."),
         h("li", {}, h("b", {}, "Selfie: "), "con la cámara frontal en vivo. Se guarda en almacenamiento privado y solo la ven tu supervisor y la administración.")),
       notas ? campo("Notas de entrega para tu relevo (opcional)", notas, "Las verá quien te releve.") : null,
-      h("button", { class: "btn primario", type: "button", onclick: () => { if (!hayConexion()) return toast(SIN_CONEXION, "error"); estado.notas = notas ? notas.value : ""; pasoGps(); } }, "Comenzar"));
+      h("button", { class: "btn primario", type: "button", onclick: () => { estado.notas = notas ? notas.value : ""; pasoGps(); } }, "Comenzar"));
   }
 
   // ---------- 1. GPS ----------
@@ -144,19 +143,20 @@ export function abrirMarcado({ tipo, turno, sitio, api, alTerminar }) {
       boton, error);
     boton.addEventListener("click", async () => {
       limpiar(error);
-      if (!hayConexion()) { poner(error, mensajeError(SIN_CONEXION)); return; }
       boton.disabled = true;
       boton.textContent = "Registrando…";
       try {
-        const r = await api(`/marcas/${tipo}`, { body: {
-          turnoId: turno.id, lat: estado.gps.lat, lng: estado.gps.lng, precisionM: estado.gps.precisionM, qr: estado.qr,
-          foto: estado.foto.base64, horaDispositivoMs: Date.now(), ...(tipo === "salida" ? { notasEntrega: estado.notas } : {}),
-        } });
+        // Sin conexión el registro se guarda en el celular (con su selfie) y se envía solo al volver la señal.
+        const r = await enviarRegistro({
+          ruta: `/marcas/${tipo}`, tipo, resumen: turno.sitioNombre, turnoId: turno.id,
+          body: { turnoId: turno.id, lat: estado.gps.lat, lng: estado.gps.lng, precisionM: estado.gps.precisionM, qr: estado.qr, foto: estado.foto.base64, horaDispositivoMs: Date.now(), ...(tipo === "salida" ? { notasEntrega: estado.notas } : {}) },
+        });
         cerrar();
-        toast(tipo === "entrada" ? (r.retardo ? `Entrada registrada con retardo (${r.retardoMin} min).` : "Entrada registrada.") : "Salida registrada. ¡Buen descanso!");
-        alTerminar();
+        if (r.encolado) toast(`${tipo === "entrada" ? "Entrada" : "Salida"} guardada SIN CONEXIÓN. Se enviará sola al volver la señal; el servidor la validará.`);
+        else toast(tipo === "entrada" ? (r.data.retardo ? `Entrada registrada con retardo (${r.data.retardoMin} min).` : "Entrada registrada.") : "Salida registrada. ¡Buen descanso!");
+        alTerminar(r.encolado ? { tipo, tsMs: r.item.horaEstimadaMs } : null);
       } catch (e) {
-        poner(error, mensajeError(e.status ? e.message : SIN_CONEXION));
+        poner(error, mensajeError(e.status ? e.message : "No se pudo guardar el registro. Inténtalo de nuevo."));
         boton.disabled = false;
         boton.textContent = `Registrar ${etiqueta}`;
       }

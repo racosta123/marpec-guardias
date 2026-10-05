@@ -145,6 +145,34 @@ service cloud.firestore {
       allow create, update, delete: if false;
     }
 
+    // ---- Fase 6: sin conexión, pánico y panel en vivo ----
+    // Alertas de pánico: la ORIGINAL (panicos) es inmutable y solo la lee el admin. Su estado visible (panicoVista:
+    // activa/atendida, quién y cuándo) lo lee en TIEMPO REAL solo el admin o el supervisor de ESE sitio
+    // (supervisorUid denormalizado). Las consultas del panel en vivo tienen que filtrar por supervisorUid: una consulta
+    // que pueda devolver datos de otros sitios se rechaza completa. El guardia no lee alertas.
+    match /panicos/{id} {
+      allow get, list: if esAdmin();
+      allow create, update, delete: if false;
+    }
+    match /panicoVista/{id} {
+      allow get, list: if esAdmin() || (esSupervisor() && resource.data.supervisorUid == request.auth.uid);
+      allow create, update, delete: if false;
+    }
+    match /atencionesPanico/{id} {
+      allow get, list: if esAdmin();
+      allow create, update, delete: if false;
+    }
+    // Registros capturados sin conexión: bandeja de revisión (supervisor del sitio o admin) y decisiones inmutables.
+    // registrosOffline (claves de idempotencia), pushSuscripciones y pushEnviados: SOLO el Worker (cerradas por defecto).
+    match /offlineVista/{id} {
+      allow get, list: if esAdmin() || (esSupervisor() && resource.data.supervisorUid == request.auth.uid);
+      allow create, update, delete: if false;
+    }
+    match /revisionesOffline/{id} {
+      allow get, list: if esAdmin();
+      allow create, update, delete: if false;
+    }
+
     match /configuracion/{docId} {
       allow get: if esAdmin();
       allow list, create, update, delete: if false;

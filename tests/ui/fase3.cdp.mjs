@@ -100,13 +100,15 @@ try {
   await ev("Object.defineProperty(navigator, 'onLine', { configurable: true, get: () => false })");
   await ev("[...document.querySelectorAll('.marcar-caja button')].find((b) => /Comenzar/i.test(b.textContent)).click()");
   await espera(500);
-  check("sin conexión: mensaje claro «Sin conexión, intenta de nuevo»", /Sin conexión, intenta de nuevo/.test(await ev("document.getElementById('toasts').innerText")));
+  check("sin conexión (Fase 6): el asistente ya NO se bloquea; avanza a la ubicación (el registro se guardará en la cola)", /Paso 1 de 4/i.test(await texto(".marcar-caja")));
   await cmd("Network.emulateNetworkConditions", { offline: false, latency: 0, downloadThroughput: -1, uploadThroughput: -1 });
 
   // ---------------- SUPERVISOR: panel de asistencia ----------------
   await ir("/index.html?rol=supervisor");
   const tabs = await ev("[...document.querySelectorAll('.tab-app')].map((b) => b.textContent).join(',')");
-  check("supervisor: pestañas Asistencia, Rondines, Incidencias, Visitantes, Bitácoras, Turnos y Mis sitios", tabs === "Asistencia,Rondines,Incidencias,Visitantes,Bitácoras,Turnos,Mis sitios", tabs);
+  check("supervisor: pestañas En vivo, Asistencia, Rondines, Incidencias, Visitantes, Bitácoras, Sin conexión, Alertas, Turnos y Mis sitios", tabs === "En vivo,Asistencia,Rondines,Incidencias,Visitantes,Bitácoras,Sin conexión,Alertas,Turnos,Mis sitios", tabs);
+  await ev("document.querySelector('[data-clave=asistencia]').click()");
+  await espera(800);
   const panel = await texto("#contenido");
   check("supervisor: alerta «Relevo no llegó» con botón de autorizar cierre", /Relevo no llegó/i.test(panel) && /Autorizar cierre sin relevo/i.test(panel));
   check("supervisor: horas extra por autorizar", /Horas extra por autorizar/i.test(panel) && /Autorizar/i.test(panel));

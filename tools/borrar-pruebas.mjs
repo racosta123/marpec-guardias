@@ -30,6 +30,8 @@ const escaneos = await consulta("escaneos");
 const incidencias = await consulta("incidencias");
 const visitantes = await consulta("visitantes");
 credenciales.push(...escaneos, ...incidencias, ...visitantes, ...(await consulta("incidenciasResumen")), ...(await consulta("seguimientosIncidencia")), ...(await consulta("salidasVisitante")), ...(await consulta("visitantesVista")), ...(await consulta("novedades")));
+// Fase 6: pánico, registros sin conexión y notificaciones (todo lo marcado prueba=true)
+for (const c of ["panicos", "panicoVista", "atencionesPanico", "registrosOffline", "offlineVista", "revisionesOffline", "pushSuscripciones", "pushEnviados"]) credenciales.push(...(await consulta(c)));
 const uids = usuarios.map((d) => d.name.split("/").pop());
 console.log(`Usuarios de prueba: ${usuarios.length}, credenciales/sitios/turnos/marcas/asistencias/ajustes/autorizaciones/puntos/rondines/escaneos/incidencias/visitantes/novedades de prueba: ${credenciales.length}`);
 for (const d of usuarios) console.log(" -", d.fields.rol?.stringValue, d.fields.nombre?.stringValue);

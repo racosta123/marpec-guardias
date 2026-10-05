@@ -4,7 +4,12 @@ import { store } from "./fake-firebase.js";
 
 const real = window.fetch.bind(window);
 window.__llamadas = [];
-const ok = (o, status = 200) => new Response(JSON.stringify(o), { status, headers: { "content-type": "application/json" } });
+// Conexión simulada: con __setOffline(true) las llamadas al Worker fallan como una red caída y navigator.onLine = false.
+window.__offline = new URLSearchParams(location.search).get("offline") === "1"; // ?offline=1: la app se abre sin conexión
+window.__skew = 0; // diferencia simulada (servidor − celular) para probar la hora estimada
+Object.defineProperty(navigator, "onLine", { get: () => !window.__offline, configurable: true });
+window.__setOffline = (v) => { window.__offline = v; window.dispatchEvent(new Event(v ? "offline" : "online")); };
+const ok = (o, status = 200) => new Response(JSON.stringify(o), { status, headers: { "content-type": "application/json", "x-server-time": String(Date.now() + window.__skew) } });
 const id = () => Math.random().toString(16).slice(2, 10);
 
 window.fetch = async (url, init = {}) => {
@@ -13,7 +18,17 @@ window.fetch = async (url, init = {}) => {
   if (!u.includes("workers.dev")) return real(url, init);
   const ruta = new URL(u).pathname;
   const body = init.body ? JSON.parse(init.body) : {};
+  if (window.__offline) { window.__fallidas = (window.__fallidas || 0) + 1; throw new TypeError("Failed to fetch"); }
   window.__llamadas.push({ ruta, body });
+  // Fase 6: rechazo simulado de un registro (para probar los «rechazados» de la cola)
+  if (window.__rechazar && window.__rechazar.includes(ruta)) return ok({ error: "qr_invalido", mensaje: "El código QR no es válido para este puesto." }, 400);
+  if (window.__duplicados && body.sync?.clientId) { window.__vistos = window.__vistos || new Set(); if (window.__vistos.has(body.sync.clientId)) return ok({ ok: true, duplicado: true }); window.__vistos.add(body.sync.clientId); }
+  if (ruta === "/panico") { store.panicoVista = store.panicoVista || {}; const id = "p-" + Math.random().toString(16).slice(2, 8); store.panicoVista[id] = { panicoId: id, sitioId: "siteA", sitioNombre: "Plaza Norte", supervisorUid: "sup1", guardiaUid: "g-G001", guardiaNombre: "Gael Guardia", estado: "activa", tsMs: Date.now(), recibidoMs: Date.now(), lat: body.lat ?? null, lng: body.lng ?? null, precisionM: body.precisionM ?? null, sin_conexion: body.sync?.offline === true }; window.__tick?.(); return ok({ ok: true, id, avisados: 1 }, 201); }
+  if (ruta === "/panico/atender") { const p = store.panicoVista?.[body.id]; if (!p) return ok({ error: "not_found" }, 404); if (p.estado === "atendida") return ok({ error: "ya_atendida", mensaje: "Ya la atendió alguien más." }, 409); Object.assign(p, { estado: "atendida", atendidaPorNombre: "Sara Supervisora", atendidaPorRol: "supervisor", atendidaMs: Date.now(), notaAtencion: body.nota || "" }); window.__tick?.(); return ok({ ok: true }); }
+  if (ruta === "/offline/revisar") { const r = store.offlineVista?.[body.registroId]; if (r) Object.assign(r, { estadoRevision: body.accion === "aceptar" ? "aceptado" : "ajustado", revisionPorNombre: "Sara Supervisora", revisionMotivo: body.motivo || "", horaAjustadaMs: body.horaAjustadaMs || null }); return ok({ ok: true }); }
+  if (ruta === "/push/clave") return ok({ publicKey: "BEl62iUYgUivxIkv69yViEuiBIa-Ib9-SkvMeAtA3LFgDzkrxZJjSgSnfckjBJuBkr3qBUYIHBQFLXYp5Nksh8U" });
+  if (ruta === "/push/estado") return ok({ configurado: true, suscrito: false, prefs: null });
+  if (ruta === "/push/prefs") return ok({ ok: true, prefs: body.prefs });
   if (ruta === "/sitios/qr") {
     const sid = new URL(u).searchParams.get("id");
     return ok({ payload: `MPC1.${sid}.1.AAAAAAAAAAAAAAAAAAAAAA`, version: 1, sitio: { id: sid, nombre: store.sitios[sid]?.nombre || "Sitio", direccion: store.sitios[sid]?.direccion || "" } });
@@ -40,7 +55,7 @@ window.fetch = async (url, init = {}) => {
     const sig = ordenada ? pts.find((x) => !x.hecho)?.puntoId || null : null;
     const ahoraMs = Date.now();
     return ok({ hay: true, modo: "ordenada", proximoMs: ahoraMs + 2 * 3600e3,
-      rondines: [{ indice: 0, programadoMs: ahoraMs - 20 * 60e3, estado: hechos === 3 ? "completo" : hechos ? "en_curso" : "pendiente", hechos, total: 3 }, { indice: 1, programadoMs: ahoraMs + 2 * 3600e3, estado: "programado", hechos: 0, total: 3 }],
+      rondines: [{ indice: 0, programadoMs: ahoraMs - 20 * 60e3, abreMs: ahoraMs - 35 * 60e3, cierraInicioMs: ahoraMs + 10 * 60e3, venceMs: ahoraMs + 25 * 60e3, estado: hechos === 3 ? "completo" : hechos ? "en_curso" : "pendiente", hechos, total: 3 }, { indice: 1, programadoMs: ahoraMs + 2 * 3600e3, abreMs: ahoraMs + 105 * 60e3, cierraInicioMs: ahoraMs + 135 * 60e3, venceMs: ahoraMs + 165 * 60e3, estado: "programado", hechos: 0, total: 3 }],
       actual: hechos === 3 ? null : { indice: 0, programadoMs: ahoraMs - 20 * 60e3, venceMs: ahoraMs + 25 * 60e3, estado: hechos ? "en_curso" : "pendiente", hechos, total: 3, porcentaje: Math.round(hechos / 3 * 100), modo: "ordenada", siguientePuntoId: sig, puntos: pts } });
   }
   if (ruta === "/rondines/escanear") {

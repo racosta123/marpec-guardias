@@ -5,6 +5,9 @@ import { distanciaM } from "../geo.js";
 import { HttpError, commit, getDocument, runQuery } from "../google.js";
 import { validarFoto } from "./marcas.js";
 import { enumerado, sitioParaGestion, soloCampos, turnoActivoDelGuardia } from "./turnoActivo.js";
+import { camposOffline, escriturasRegistro, leerTiempo, siEsDuplicado } from "../offline.js";
+import { cargarConfig } from "./asistenciaSvc.js";
+import { notificar } from "../push.js";
 
 export const TIPOS_DEFECTO = [
   { id: "acceso_no_autorizado", nombre: "Acceso no autorizado", activo: true },
@@ -69,7 +72,7 @@ async function construirResumen(env, incId, inc, seguimientos) {
     incidenciaId: incId, sitioId: inc.sitioId, sitioNombre: sitio?.nombre || "", supervisorUid: sitio?.supervisorUid ?? null,
     guardiaUid: inc.guardiaUid, guardiaNombre: inc.guardiaNombre, turnoId: inc.turnoId, tipoId: inc.tipoId, tipoNombre: inc.tipoNombre,
     gravedad: inc.gravedad, descripcion: inc.descripcion, creadoMs: inc.creadoMs, lat: inc.lat, lng: inc.lng, precisionM: inc.precisionM, distanciaM: inc.distanciaM,
-    nFotos: inc.fotoKeys.length, estado, estadoMs: ultimoEstado ? ultimoEstado.tsMs : inc.creadoMs, alta: inc.gravedad === "alta",
+    nFotos: inc.fotoKeys.length, estado, ...(inc.sin_conexion === true ? { sin_conexion: true, recibidoMs: inc.recibidoMs } : {}), estadoMs: ultimoEstado ? ultimoEstado.tsMs : inc.creadoMs, alta: inc.gravedad === "alta",
     seguimientos: orden.slice(-MAX_SEGUIMIENTOS).map((s) => ({ tipo: s.tipo, estadoNuevo: s.estadoNuevo ?? null, texto: s.texto, autorNombre: s.autorNombre, autorRol: s.autorRol, tsMs: s.tsMs })),
     ...(inc.prueba === true ? { prueba: true } : {}),
   };
@@ -88,8 +91,10 @@ export async function crearIncidencia(env, request) {
   const actor = await authenticate(env, request);
   requireRol(actor, "guardia");
   const b = await readJson(request, BODY_MAX);
-  soloCampos(b, ["turnoId", "tipoId", "gravedad", "descripcion", "fotos", "lat", "lng", "precisionM", "horaDispositivoMs"]);
-  const { turno, sitio } = await turnoActivoDelGuardia(env, actor, vId(b.turnoId, "turnoId"));
+  soloCampos(b, ["turnoId", "tipoId", "gravedad", "descripcion", "fotos", "lat", "lng", "precisionM", "horaDispositivoMs", "sync"]);
+  const config = await cargarConfig(env);
+  const t = await leerTiempo(env, actor, b, config);
+  const { turno, sitio } = await turnoActivoDelGuardia(env, actor, vId(b.turnoId, "turnoId"), t, config);
   const tipo = (await cargarCatalogo(env)).find((t) => t.id === b.tipoId && t.activo !== false);
   if (!tipo) throw bad("Tipo de incidencia inválido o inactivo.");
   const gravedad = enumerado(b.gravedad, "Gravedad", GRAVEDADES);
@@ -104,8 +109,8 @@ export async function crearIncidencia(env, request) {
     lat = num(b.lat, "Latitud", -90, 90); lng = num(b.lng, "Longitud", -180, 180); precisionM = num(b.precisionM, "Precisión", 0, 100000);
     if (typeof sitio.lat === "number") dist = Math.round(distanciaM(lat, lng, sitio.lat, sitio.lng) * 10) / 10;
   }
-  const ahora = Date.now(); // hora del servidor
-  const incId = `${ahora.toString(36)}-${randomId(5)}`;
+  const ahora = t.ahora; // hora del servidor (o la estimada, acotada, si vino sin conexión)
+  const incId = t.registroId ? `o${t.registroId.slice(0, 16)}` : `${ahora.toString(36)}-${randomId(5)}`;
   const guardia = await getDocument(env, `usuarios/${actor.uid}`);
   const fotoKeys = bytes.map((_, i) => `incidencias/${turno.sitioId}/${incId}/${i}-${randomId(5)}.jpg`);
   for (let i = 0; i < bytes.length; i++)
@@ -115,16 +120,20 @@ export async function crearIncidencia(env, request) {
     gravedad, descripcion, creadoMs: ahora, lat, lng, precisionM, distanciaM: dist, fotoKeys,
     horaDispositivoMs: Number.isFinite(b.horaDispositivoMs) ? Math.round(b.horaDispositivoMs) : null,
     ...(turno.prueba === true || sitio.prueba === true ? { prueba: true } : {}),
+    ...camposOffline(t),
   };
   try {
     await commit(env, [
       { path: `incidencias/${incId}`, data: inc, mustNotExist: true, serverTimeField: "ts" }, // inmutable
       { path: `incidenciasResumen/${incId}`, data: await construirResumen(env, incId, inc, []), serverTimeField: "actualizadoEn" },
+      ...escriturasRegistro(t, { tipo: "incidencia", titulo: `Incidencia (${gravedad}): ${tipo.nombre}`, refPath: `incidencias/${incId}`, sitioId: turno.sitioId, sitioNombre: sitio.nombre, supervisorUid: sitio.supervisorUid ?? null, guardiaUid: actor.uid, guardiaNombre: guardia?.nombre || "", prueba: inc.prueba === true }),
     ]);
   } catch (e) {
     for (const k of fotoKeys) await env.SELFIES.delete(k).catch(() => {});
+    await siEsDuplicado(env, e, t);
     throw e;
   }
+  if (gravedad === "alta") await notificar(env, { evento: "incidencia_alta", sitio, sitioId: turno.sitioId, prueba: inc.prueba === true });
   return { status: 201, body: { ok: true, id: incId, gravedad, nFotos: fotoKeys.length } };
 }
 

@@ -21,6 +21,11 @@ async function camposSitio(env, b, parcial) {
   if (!parcial || hay("direccion")) out.direccion = str(b.direccion, "Dirección", 0, 200, { opcional: true });
   if (!parcial || hay("cliente")) out.cliente = str(b.cliente, "Cliente", 0, 80, { opcional: true });
   if (!parcial || hay("consignas")) out.consignas = str(b.consignas, "Consignas", 0, 2000, { opcional: true });
+  if (!parcial || hay("telefonoEmergencia")) {
+    const tel = str(b.telefonoEmergencia, "Teléfono de emergencia", 0, 20, { opcional: true });
+    if (tel && !/^[0-9+() -]{7,20}$/.test(tel)) throw bad("Teléfono de emergencia: solo dígitos, +, espacios, guiones y paréntesis (7 a 20).");
+    out.telefonoEmergencia = tel;
+  }
   if (hay("supervisorUid")) out.supervisorUid = await validarSupervisor(env, b.supervisorUid);
   else if (!parcial) out.supervisorUid = null;
 

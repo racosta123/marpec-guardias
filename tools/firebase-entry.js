@@ -6,5 +6,5 @@ export {
   signInWithCustomToken, signInWithEmailAndPassword, onAuthStateChanged, signOut,
 } from "firebase/auth";
 export {
-  getFirestore, doc, getDoc, collection, getDocs, query, where, orderBy, limit,
+  getFirestore, doc, getDoc, collection, getDocs, query, where, orderBy, limit, onSnapshot,
 } from "firebase/firestore";

@@ -102,7 +102,7 @@ export function calcularRondin({ slot, modo, requeridos, escaneos = [], ajustes 
     detalle: requeridos.map((r) => {
       const h = hechos.get(r.puntoId);
       return { puntoId: r.puntoId, nombre: r.nombre, orden: r.orden, hecho: Boolean(h), tsMs: h ? h.tsMs : null, origen: h ? h.origen : null,
-        nota: h?.nota || "", foto: Boolean(h?.fotoKey), distanciaM: h?.distanciaM ?? null, ajusteMotivo: h?.motivo || null, ajustePor: h?.autorNombre || null };
+        nota: h?.nota || "", foto: Boolean(h?.fotoKey), sin_conexion: h?.sin_conexion === true, distanciaM: h?.distanciaM ?? null, ajusteMotivo: h?.motivo || null, ajustePor: h?.autorNombre || null };
     }),
   };
 }

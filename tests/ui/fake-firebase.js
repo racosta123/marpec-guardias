@@ -26,7 +26,7 @@ export const store = {
     "g-G003": { nombre: "Beto Baja", rol: "guardia", numeroEmpleado: "G003", activo: false, prueba: true },
   },
   sitios: {
-    siteA: { nombre: "Plaza Norte", cliente: "ACME", direccion: "Blvd. Kino 100", consignas: "1. Registrar visitantes.\n2. Rondín cada 2 horas.", supervisorUid: "sup1", lat: 29.0729, lng: -110.9559, precisionM: 12, radioM: 100, qrVersion: 1, activo: true },
+    siteA: { telefonoEmergencia: "662 123 4567", nombre: "Plaza Norte", cliente: "ACME", direccion: "Blvd. Kino 100", consignas: "1. Registrar visitantes.\n2. Rondín cada 2 horas.", supervisorUid: "sup1", lat: 29.0729, lng: -110.9559, precisionM: 12, radioM: 100, qrVersion: 1, activo: true },
     siteB: { nombre: "Bodega Sur", cliente: "Logística SA", direccion: "Calle 5", consignas: "", supervisorUid: "sup2", lat: null, lng: null, radioM: 100, qrVersion: 1, activo: true },
   },
   turnos: {
@@ -103,14 +103,51 @@ export const limit = (n) => ({ k: "limit", n });
 export const query = (col, ...cs) => ({ ...col, cs });
 const snapDoc = (id, data) => ({ id, data: () => data, exists: () => Boolean(data) });
 
+const sinRed = () => { if (window.__offline) throw Object.assign(new Error("offline"), { code: "unavailable" }); };
+// Ayudante de las pruebas: agrega una alerta de pánico activa y avisa a los listeners
+window.__panico = (o = {}) => { store.panicoVista = store.panicoVista || {}; const id = o.id || "px" + Math.random().toString(16).slice(2, 6); store.panicoVista[id] = { panicoId: id, sitioId: "siteA", sitioNombre: "Plaza Norte", supervisorUid: "sup1", guardiaUid: "g-G001", guardiaNombre: "Gael Guardia", estado: "activa", tsMs: Date.now(), recibidoMs: Date.now(), lat: 29.0731, lng: -110.9558, precisionM: 9, distanciaM: 24, ...o }; window.__tick(); return id; };
+
 export async function getDoc(r) {
+  sinRed();
   const [c, id] = r.__doc;
   if (ROL === "guardia" && c === "sitios" && !(store.usuarios[UID].sitiosAsignados || []).includes(id))
     throw Object.assign(new Error("permiso"), { code: "permission-denied" });
   return snapDoc(id, store[c]?.[id]);
 }
 
+// Escuchas en tiempo real simuladas. Imitan las reglas: un supervisor solo puede escuchar consultas filtradas por SU supervisorUid.
+const PROTEGIDAS = ["panicoVista", "asistencias", "rondines", "incidenciasResumen", "visitantesVista", "offlineVista", "turnos"];
+const subs = new Set();
+export function onSnapshot(q, cb, err) {
+  const s = { q, cb, err };
+  subs.add(s);
+  const run = () => {
+    if (!subs.has(s)) return;
+    const filtros = (q.cs || []).filter((c) => c.k === "where");
+    const suyo = filtros.some((c) => c.campo === "supervisorUid" && c.op === "==" && c.valor === UID);
+    if (ROL === "supervisor" && PROTEGIDAS.includes(q.__col) && !suyo) { window.__escuchasRechazadas = (window.__escuchasRechazadas || 0) + 1; if (err) err(Object.assign(new Error("permission-denied"), { code: "permission-denied" })); return; }
+    if (ROL === "guardia") { if (err) err(Object.assign(new Error("permission-denied"), { code: "permission-denied" })); return; }
+    const docs = consultar(q);
+    window.__escuchas = (window.__escuchas || 0) + 1;
+    cb({ docs: docs.map(({ id, d }) => snapDoc(id, d)), size: docs.length, empty: docs.length === 0, metadata: { fromCache: Boolean(window.__offline) } });
+  };
+  s.run = run;
+  setTimeout(run, 0);
+  return () => subs.delete(s);
+}
+window.__tick = () => subs.forEach((s) => s.run());
+window.__suscripciones = () => subs.size;
+
+function consultar(q) {
+  let docs = Object.entries(store[q.__col] || {}).map(([id, d]) => ({ id, d }));
+  for (const c of q.cs || []) {
+    if (c.k === "where") docs = docs.filter(({ d }) => ({ "==": d[c.campo] === c.valor, ">=": d[c.campo] >= c.valor, "<": d[c.campo] < c.valor })[c.op]);
+  }
+  return docs;
+}
+
 export async function getDocs(q) {
+  sinRed();
   let docs = Object.entries(store[q.__col] || {}).map(([id, d]) => ({ id, d }));
   for (const c of q.cs || []) {
     if (c.k === "where") docs = docs.filter(({ d }) => ({ "==": d[c.campo] === c.valor, ">=": d[c.campo] >= c.valor, "<": d[c.campo] < c.valor })[c.op]);

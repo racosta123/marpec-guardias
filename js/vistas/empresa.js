@@ -5,7 +5,7 @@ import { accion, campo, h, limpiar, poner } from "../ui.js";
 const TIPOS_DEFECTO = [["acceso_no_autorizado", "Acceso no autorizado"], ["robo", "Robo"], ["danio", "Daño"], ["falla_electrica", "Falla eléctrica"], ["falla_equipo", "Falla de equipo"], ["persona_sospechosa", "Persona sospechosa"], ["otro", "Otro"]].map(([id, nombre]) => ({ id, nombre, activo: true }));
 
 const DEFECTO = {
-  retencionVisitantesDias: 90,
+  retencionVisitantesDias: 90, offlineMaxHoras: 12,
   toleranciaRetardoMin: 10, limiteFaltaMin: 30, retardosPorFalta: 3, ventanaEntradaMin: 30, toleranciaRelevoMin: 30,
   limitesExtraPorAnio: [{ anio: 2026, horasSemana: 9 }, { anio: 2027, horasSemana: 12 }],
 };
@@ -25,6 +25,7 @@ export async function vistaEmpresa(raiz, { db, api }) {
   const ven = num(c.ventanaEntradaMin, 0, 240);
   const rel = num(c.toleranciaRelevoMin, 0, 240);
   const ret = h("input", { type: "number", min: 7, max: 1825, step: 1, value: c.retencionVisitantesDias, required: true });
+  const offH = h("input", { type: "number", min: 1, max: 72, step: 1, value: c.offlineMaxHoras, required: true });
 
   const filasLim = h("div", { class: "limites" });
   const agregarFila = (anio = "", horas = "") => {
@@ -44,6 +45,8 @@ export async function vistaEmpresa(raiz, { db, api }) {
     campo("Retardos que equivalen a 1 falta", retd),
     h("h3", {}, "Relevo"),
     campo("Tolerancia de relevo (minutos)", rel, "Si el relevo no marca entrada al fin del turno + esta tolerancia, se alerta al supervisor y corre el tiempo extra del saliente."),
+    h("h3", {}, "Registros sin conexión"),
+    campo("Antigüedad máxima aceptada (horas)", offH, "Un registro que el celular guardó sin internet y llega con más antigüedad que esto se rechaza (por defecto 12). El supervisor revisa los que sí llegan."),
     h("h3", {}, "Visitantes"),
     campo("Retención de registros y fotos de visitantes (días)", ret, "Pasado este tiempo se borran automáticamente (por defecto 90; de 7 a 1825). No se guardan identificaciones."),
     h("h3", {}, "Límite legal de horas extra dobles por semana"),
@@ -55,7 +58,7 @@ export async function vistaEmpresa(raiz, { db, api }) {
   f.addEventListener("submit", async (e) => {
     e.preventDefault();
     await accion(f.querySelector("button[type=submit]"), () => api("/admin/config", { body: {
-      toleranciaRetardoMin: Number(tol.value), limiteFaltaMin: Number(lim.value), retardosPorFalta: Number(retd.value), retencionVisitantesDias: Number(ret.value),
+      toleranciaRetardoMin: Number(tol.value), limiteFaltaMin: Number(lim.value), retardosPorFalta: Number(retd.value), retencionVisitantesDias: Number(ret.value), offlineMaxHoras: Number(offH.value),
       ventanaEntradaMin: Number(ven.value), toleranciaRelevoMin: Number(rel.value),
       limitesExtraPorAnio: [...filasLim.children].map((x) => x._valores()).filter((x) => x.anio || x.horasSemana),
     } }), "Configuración guardada.");

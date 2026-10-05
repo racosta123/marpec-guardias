@@ -82,3 +82,14 @@ Se reclama de forma atómica: la segunda llamada responde `404` para siempre. De
 5. Verificación en real: `node tools/e2e-real-fase5.mjs <uid-admin>` (~8 min; incluye la prueba de retención con el cron real).
 6. Antes de entregar a MARPEC: `node tools/borrar-pruebas.mjs --aplicar` (ahora también borra incidencias, visitantes, novedades y sus fotos de prueba en R2).
 7. Imprimir y colocar el cartel `aviso-visitantes.html` (borrador: requiere revisión legal y completar los datos de contacto).
+
+## Fase 6 — pasos de despliegue
+
+1. Respaldo previo: `node tools/respaldar-firestore.mjs`.
+2. Llaves VAPID (una sola vez; **no se muestran ni se guardan en disco**): `node tools/rotate-secrets.mjs vapid`.
+3. Reglas e índices: `firebase deploy --only firestore --project marpec-guardias` (esperar a que los índices nuevos queden *READY*: `panicoVista` y `offlineVista` por `supervisorUid + tsMs`).
+4. Worker (rutas `/panico`, `/offline/revisar`, `/push/*`; cabecera `x-server-time`): `cd worker && npx wrangler deploy`.
+5. Frontend: push a `main` (service worker v8; incluye el manejo de notificaciones).
+6. Verificación en real: `node tools/e2e-real-fase6.mjs <uid-admin>`.
+7. Cada supervisor/admin activa sus notificaciones en la pestaña «Alertas» (en iPhone, con la app instalada). Capturar el **teléfono de emergencia** de cada sitio (Sitios → Editar).
+8. Antes de entregar a MARPEC: `node tools/borrar-pruebas.mjs --aplicar` (ahora también borra pánico, registros sin conexión, revisiones, suscripciones y marcas `pushEnviados` de prueba).

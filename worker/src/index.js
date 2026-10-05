@@ -23,6 +23,10 @@ import { recalcularRondinesVentana } from "./handlers/rondinesSvc.js";
 import { catalogoIncidencias, crearIncidencia, fotoIncidencia, guardarCatalogo, seguimientoIncidencia } from "./handlers/incidencias.js";
 import { entradaVisitante, fotoVisitante, purgarVisitantes, salidaVisitante, visitantesDentro } from "./handlers/visitantes.js";
 import { bitacoraAnterior, bitacoraTurno, crearNovedad } from "./handlers/bitacora.js";
+import { atenderPanico, crearPanico } from "./handlers/panico.js";
+import { bajaPush, claveVapid, estadoPush, guardarPrefsPush, suscribirPush } from "./handlers/notificaciones.js";
+import { revisarOffline } from "./handlers/offlineRev.js";
+import { Duplicado } from "./offline.js";
 
 export { RateLimiter };
 
@@ -55,6 +59,7 @@ function corsHeaders(env, origin) {
       "access-control-allow-methods": "GET, POST, OPTIONS",
       "access-control-allow-headers": "authorization, content-type, x-setup-token",
       "access-control-max-age": "600",
+      "access-control-expose-headers": "x-server-time",
       vary: "Origin",
     };
   }
@@ -65,7 +70,7 @@ function respond(env, request, status, body, extra = {}) {
   const origin = request.headers.get("origin");
   return new Response(body === null ? null : JSON.stringify(body), {
     status,
-    headers: { ...SECURITY_HEADERS, ...corsHeaders(env, origin), ...extra },
+    headers: { ...SECURITY_HEADERS, ...corsHeaders(env, origin), "x-server-time": String(Date.now()), ...extra },
   });
 }
 
@@ -231,6 +236,15 @@ const ROUTES = {
   "POST /novedades": crearNovedad,
   "GET /bitacora/turno": bitacoraTurno,
   "GET /bitacora/anterior": bitacoraAnterior,
+  // Fase 6: pánico, sin conexión y notificaciones push
+  "POST /panico": crearPanico,
+  "POST /panico/atender": atenderPanico,
+  "POST /offline/revisar": revisarOffline,
+  "GET /push/clave": claveVapid,
+  "POST /push/suscribir": suscribirPush,
+  "POST /push/estado": estadoPush,
+  "POST /push/prefs": guardarPrefsPush,
+  "POST /push/baja": bajaPush,
 };
 
 export default {
@@ -264,6 +278,8 @@ export default {
       }
       return respond(env, request, r.status, r.body);
     } catch (e) {
+      // Registro ya recibido antes (reintento del celular): no se escribe de nuevo y se responde que está guardado.
+      if (e instanceof Duplicado) return respond(env, request, 200, { ok: true, duplicado: true });
       if (e instanceof HttpError) {
         return respond(env, request, e.status, { error: e.code, ...(e.detail ? { mensaje: e.detail } : {}) });
       }

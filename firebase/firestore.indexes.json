@@ -195,6 +195,62 @@
           "order": "ASCENDING"
         }
       ]
+    },
+    {
+      "collectionGroup": "panicoVista",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "supervisorUid",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "tsMs",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "offlineVista",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "supervisorUid",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "tsMs",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "panicoVista",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "supervisorUid",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "tsMs",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "offlineVista",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "supervisorUid",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "tsMs",
+          "order": "ASCENDING"
+        }
+      ]
     }
   ],
   "fieldOverrides": []

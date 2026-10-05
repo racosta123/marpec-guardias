@@ -1,14 +1,23 @@
 // Utilidades compartidas de la Fase 5: turno activo del guardia y esquemas estrictos de entrada.
 import { bad } from "../common.js";
 import { HttpError, getDocument } from "../google.js";
+import { dentroDelTurno } from "../offline.js";
 
 // Guardia con turno propio, programado, con entrada marcada y sin salida (mismo criterio que los rondines).
-export async function turnoActivoDelGuardia(env, actor, turnoId) {
+// Registro sin conexión (`t.sin_conexion`): el celular pudo mandarlo DESPUÉS de cerrar el turno, así que se valida
+// con la hora estimada del evento: entre la entrada y la salida (si ya existe) y dentro del turno.
+export async function turnoActivoDelGuardia(env, actor, turnoId, t = null, config = null) {
   const turno = await getDocument(env, `turnos/${turnoId}`);
   if (!turno || turno.guardiaUid !== actor.uid) throw new HttpError(403, "forbidden", "Este turno no es tuyo.");
   if (turno.estado !== "programado") throw new HttpError(409, "sin_turno_activo", "Este turno ya no está activo.");
-  if (!(await getDocument(env, `marcas/${turnoId}_entrada`))) throw new HttpError(409, "sin_entrada", "Primero debes marcar tu entrada.");
-  if (await getDocument(env, `marcas/${turnoId}_salida`)) throw new HttpError(409, "sin_turno_activo", "Ya cerraste tu turno.");
+  const entrada = await getDocument(env, `marcas/${turnoId}_entrada`);
+  if (!entrada) throw new HttpError(409, "sin_entrada", "Primero debes marcar tu entrada.");
+  const salida = await getDocument(env, `marcas/${turnoId}_salida`);
+  if (t?.sin_conexion) {
+    dentroDelTurno(t, turno, config);
+    if (t.ahora < entrada.tsMs) throw new HttpError(409, "fuera_de_turno", "La hora del registro es anterior a tu entrada.");
+    if (salida && t.ahora > salida.tsMs) throw new HttpError(409, "fuera_de_turno", "La hora del registro es posterior a tu salida.");
+  } else if (salida) throw new HttpError(409, "sin_turno_activo", "Ya cerraste tu turno.");
   const sitio = await getDocument(env, `sitios/${turno.sitioId}`);
   if (!sitio || sitio.activo === false) throw new HttpError(409, "sin_turno_activo", "El sitio no está activo.");
   return { turno, sitio };

@@ -20,7 +20,14 @@ function putSecret(name, value) {
 }
 
 const what = process.argv[2];
-if (what === "pepper") putSecret("PIN_PEPPER", randomBytes(48).toString("base64"));
+// Fase 6: par de llaves VAPID (Web Push). Se genera aquí, se sube directo al Worker y NO se muestra ni se guarda en disco.
+if (what === "vapid") {
+  const { generateKeyPairSync } = await import("node:crypto");
+  const { privateKey } = generateKeyPairSync("ec", { namedCurve: "P-256" });
+  const jwk = privateKey.export({ format: "jwk" });
+  putSecret("VAPID_PRIVATE_JWK", JSON.stringify({ kty: "EC", crv: "P-256", x: jwk.x, y: jwk.y, d: jwk.d }));
+  console.log("Llaves VAPID generadas y cargadas como secret del Worker (no se muestran).");
+} else if (what === "pepper") putSecret("PIN_PEPPER", randomBytes(48).toString("base64"));
 else if (what === "qr") putSecret("QR_SECRET", randomBytes(48).toString("base64"));
 else if (what === "setup") {
   const t = randomBytes(32).toString("hex");
@@ -45,4 +52,4 @@ else if (what === "setup") {
     rmSync(keyFile, { force: true });
     console.log(`archivo temporal borrado: ${!existsSync(keyFile)}`);
   }
-} else console.log("uso: node tools/rotate-secrets.mjs sa|pepper|setup");
+} else console.log("uso: node tools/rotate-secrets.mjs sa|pepper|setup|qr|vapid");

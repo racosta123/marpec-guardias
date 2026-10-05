@@ -13,6 +13,7 @@ export const CONFIG_DEFECTO = {
   ventanaEntradaMin: 30, // el guardia puede marcar entrada desde N min antes del inicio
   toleranciaRelevoMin: 30, // alerta si el relevo no llega al fin del turno + N min
   retencionVisitantesDias: 90, // días que se conservan los registros y fotos de visitantes
+  offlineMaxHoras: 12, // antigüedad máxima de un registro capturado sin internet para aceptarlo
   // Límites de horas extra dobles por semana, configurables por año (reforma 2027: 12 h).
   limitesExtraPorAnio: [{ anio: 2026, horasSemana: 9 }, { anio: 2027, horasSemana: 12 }],
 };

@@ -7,6 +7,7 @@ import { HttpError, commit, getDocument, runQuery } from "../google.js";
 import { verificarFirma } from "../qr.js";
 import { buscarPredecesor, buscarSucesor, cargarConfig, recalcularTurno } from "./asistenciaSvc.js";
 import { MIN } from "../asistencia.js";
+import { camposOffline, dentroDelTurno, escriturasRegistro, leerTiempo, siEsDuplicado } from "../offline.js";
 
 export const FOTO_MAX_BYTES = 150 * 1024; // el cliente comprime a ~100 KB
 export const FOTO_MIN_BYTES = 1024;
@@ -34,7 +35,10 @@ async function marcar(env, request, tipo) {
   requireRol(actor, "guardia");
   const b = await readJson(request, BODY_MAX);
   const turnoId = vId(b.turnoId, "turnoId");
-  const ahora = Date.now(); // HORA DEL SERVIDOR; horaDispositivoMs es solo informativa
+  const config = await cargarConfig(env);
+  // HORA DEL SERVIDOR. Solo un registro sin conexión usa la hora estimada del celular (acotada y dentro del turno).
+  const t = await leerTiempo(env, actor, b, config);
+  const ahora = t.ahora;
   const noPermitido = () => new HttpError(403, "forbidden", "Este turno no es tuyo.");
 
   const turno = await getDocument(env, `turnos/${turnoId}`);
@@ -43,7 +47,7 @@ async function marcar(env, request, tipo) {
   const sitio = await getDocument(env, `sitios/${turno.sitioId}`);
   if (!sitio || sitio.activo === false) throw new HttpError(409, "sin_turno_activo", "El sitio no está activo.");
 
-  const config = await cargarConfig(env);
+  dentroDelTurno(t, turno, config);
   const previaEntrada = await getDocument(env, `marcas/${turnoId}_entrada`);
   if (tipo === "entrada") {
     if (previaEntrada) throw new HttpError(409, "ya_marcada", "Ya registraste tu entrada en este turno.");
@@ -52,6 +56,7 @@ async function marcar(env, request, tipo) {
   } else {
     if (!previaEntrada) throw new HttpError(409, "sin_entrada", "Primero debes marcar tu entrada.");
     if (await getDocument(env, `marcas/${turnoId}_salida`)) throw new HttpError(409, "ya_marcada", "Ya registraste tu salida en este turno.");
+    if (t.sin_conexion && ahora < previaEntrada.tsMs) throw new HttpError(409, "fuera_de_turno", "La hora de la salida es anterior a tu entrada.");
   }
 
   // ---- (a) GPS: dentro del perímetro y con precisión aceptable ----
@@ -96,22 +101,24 @@ async function marcar(env, request, tipo) {
         fotoKey, fotoBytes: foto.length, horaDispositivoMs, desfaseDispositivoMs: horaDispositivoMs === null ? null : horaDispositivoMs - ahora,
         ...(tipo === "salida" ? { notasEntrega: notas } : {}),
         ...(turno.prueba === true ? { prueba: true } : {}),
+        ...camposOffline(t),
       },
       mustNotExist: true, // una sola marca por tipo y turno; inmutable
       serverTimeField: "ts",
-    }]);
+    }, ...escriturasRegistro(t, { tipo, titulo: tipo === "entrada" ? "Entrada al turno" : "Salida del turno", refPath: `marcas/${marcaId}`, sitioId: turno.sitioId, sitioNombre: sitio.nombre, supervisorUid: sitio.supervisorUid ?? null, guardiaUid: actor.uid, guardiaNombre: actor.perfil.nombre, prueba: turno.prueba === true })]);
   } catch (e) {
     await env.SELFIES.delete(fotoKey).catch(() => {}); // sin marca no se conserva la foto
+    await siEsDuplicado(env, e, t);
     if (e.status === 409) throw new HttpError(409, "ya_marcada", `Ya registraste tu ${tipo} en este turno.`);
     throw e;
   }
-  const r = await recalcularTurno(env, turnoId, { ahora, config });
+  const r = await recalcularTurno(env, turnoId, { ahora: t.recibidoMs, config });
   if (tipo === "entrada") {
     // El relevo llegó: el saliente debe ver de inmediato que ya puede cerrar (y se apaga la alerta).
     const prev = await buscarPredecesor(env, turno, turnoId);
-    if (prev) await recalcularTurno(env, prev.id, { ahora, config });
+    if (prev) await recalcularTurno(env, prev.id, { ahora: t.recibidoMs, config });
   }
-  return { status: 201, body: { ok: true, tsMs: ahora, estado: r?.estado, retardo: r?.retardo ?? false, retardoMin: r?.retardoMin ?? 0, minutosExtra: r?.minutosExtra ?? 0 } };
+  return { status: 201, body: { ok: true, tsMs: ahora, sin_conexion: t.sin_conexion, estado: r?.estado, retardo: r?.retardo ?? false, retardoMin: r?.retardoMin ?? 0, minutosExtra: r?.minutosExtra ?? 0 } };
 }
 
 export const marcarEntrada = (env, request) => marcar(env, request, "entrada");

@@ -80,3 +80,16 @@ El teléfono envía lat/lng/precisión; **el Worker** decide `dentroPerimetro` (
 - `novedades/{id}` — **inmutable**: turnoId, sitioId, guardiaUid, texto, tsMs.
 - `configuracion/catalogos` — `tiposIncidencia: [{id, nombre, activo}]` (no se eliminan); `configuracion/empresa` — añade `retencionVisitantesDias`.
 - Índices: incidenciasResumen (guardiaUid | supervisorUid | sitioId) + creadoMs; visitantesVista (supervisorUid | sitioId) + entradaMs.
+
+## Implementación de la Fase 6 (campos reales)
+
+- **Sin conexión** — los registros originales (`marcas`, `escaneos`, `incidencias`, `visitantes`, `salidasVisitante`, `novedades`, `panicos`) añaden cuando vienen de la cola: `sin_conexion: true`, `recibidoMs` (servidor), `horaEstimadaMs`, `horaDispositivoMs`; su hora principal (`tsMs`/`creadoMs`/`entradaMs`) es la estimada, acotada por el servidor. `asistencias` añade `entradaSinConexion`/`salidaSinConexion`; `incidenciasResumen` y `visitantesVista` heredan `sin_conexion`; el detalle del rondín marca cada punto.
+- `registrosOffline/{sha256(uid:clientId)}` — **inmutable, solo el Worker**: clientId, guardiaUid, tipo, refPath, tsMs, recibidoMs, sin_conexion, horas. Es la llave de idempotencia (se crea en el mismo commit que el registro).
+- `offlineVista/{id}` — **recalculable (lectura admin / supervisor del sitio)**: registro sin conexión por revisar: tipo, titulo, sitio, supervisorUid, guardia, tsMs/recibidoMs/horas, `estadoRevision` (`pendiente`|`aceptado`|`ajustado`), revisionPorNombre/Motivo/Ms, horaAjustadaMs. No lleva nombres de visitantes.
+- `revisionesOffline/{id}` — **inmutable**: acción (aceptar|ajustar), motivo, horaOriginalMs, horaAjustadaMs, autor.
+- `panicos/{id}` — **inmutable** (admin lee): guardiaUid/Nombre, sitioId, turnoId, tsMs, recibidoMs, mantenidoMs, lat/lng/precisionM, distanciaM, sin_conexion.
+- `panicoVista/{id}` — **recalculable (admin / supervisor del sitio, en tiempo real)**: lo anterior + sitioNombre, supervisorUid, telefonoEmergencia, sinSitio, `estado` (`activa`|`atendida`), atendidaPorUid/Nombre/Rol, atendidaMs, notaAtencion.
+- `atencionesPanico/{id}` — **inmutable**: quién y cuándo atendió (la primera gana).
+- `pushSuscripciones/{sha256(endpoint)}` — solo el Worker: uid, rol, endpoint, p256dh, auth, prefs. `pushEnviados/{clave}` — solo el Worker: evita notificar dos veces el mismo hecho.
+- `sitios` añade `telefonoEmergencia`; `configuracion/empresa` añade `offlineMaxHoras` (12 por defecto, 1–72).
+- Índices: panicoVista y offlineVista por supervisorUid + tsMs (ascendente y descendente).

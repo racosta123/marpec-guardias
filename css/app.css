@@ -316,3 +316,60 @@ hr { border: 0; border-top: 1px solid var(--line); margin: 14px 0; }
 .cartel-pie { margin-top: 18px; color: var(--muted); font-weight: 600; }
 .cartel .borrador { background: #fff6e6; border-left: 4px solid var(--amber); padding: 10px 12px; border-radius: 6px; text-align: left; }
 @media print { .cartel { padding: 0; } .cartel-cuerpo { font-size: 1.1rem; } }
+
+/* ---- Fase 6: sin conexión, pánico y panel en vivo ---- */
+.barra-sync { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 8px 16px; font-size: .95rem; background: #e3e9fb; color: var(--navy); border-bottom: 1px solid var(--line); }
+.barra-sync.aviso { background: #fff6e6; color: #6b4a00; }
+.barra-sync.mal { background: #fbeae6; color: #7d210a; }
+.barra-sync .btn { margin: 0 !important; width: auto; }
+.etq-sc { margin-left: 6px; }
+
+/* Botón de pánico: siempre visible sobre cualquier pantalla del guardia (por encima del asistente y los modales) */
+.btn-panico { position: fixed; right: 14px; bottom: calc(14px + env(safe-area-inset-bottom, 0px)); z-index: 9000; width: 86px; height: 86px; border-radius: 50%; border: 0; padding: 0;
+  background: conic-gradient(#fff calc(var(--p, 0) * 360deg), var(--panic) 0); color: #fff; box-shadow: 0 6px 18px rgba(0,0,0,.4); cursor: pointer; touch-action: none; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; }
+.btn-panico::before { content: ""; position: absolute; inset: 7px; border-radius: 50%; background: var(--panic); }
+.btn-panico > span { position: relative; display: block; line-height: 1.1; pointer-events: none; }
+.panico-sos { font-family: "Barlow Condensed", sans-serif; font-weight: 700; font-size: 1.7rem; }
+.panico-txt { font-size: .7rem; font-weight: 600; }
+.btn-panico.sostenido { transform: scale(1.12); }
+.btn-panico.enviando { opacity: .6; }
+.btn-panico:focus-visible { outline: 4px solid var(--amber); outline-offset: 3px; }
+.panico-panel { position: fixed; inset: 0; z-index: 9100; background: rgba(120,16,0,.92); display: flex; align-items: center; justify-content: center; padding: 16px; }
+.panico-caja { background: #fff; border-radius: 16px; padding: 18px; max-width: 480px; width: 100%; display: grid; gap: 10px; }
+.panico-caja h2 { color: var(--panic); text-transform: uppercase; }
+.panico-estado { margin: 0; padding: 10px 12px; border-radius: 8px; background: #e3e9fb; color: var(--navy); font-weight: 600; }
+.panico-estado.ok { background: #dff3e4; color: #17612e; }
+.panico-estado.mal { background: #fbeae6; color: #7d210a; }
+.panico-llamadas { display: grid; gap: 8px; }
+.panico-llamadas .btn { display: flex; align-items: center; justify-content: center; text-decoration: none; margin: 0 !important; min-height: 64px; font-size: 1.2rem; text-align: center; }
+
+/* Alerta de pánico para supervisor/admin: no se cierra hasta atenderla */
+.alertas-panico { position: fixed; inset: 0 0 auto 0; z-index: 9500; max-height: 100dvh; overflow-y: auto; display: grid; gap: 6px; padding: 8px; background: rgba(120,16,0,.55); }
+.alertas-panico[hidden] { display: none; }
+.alerta-panico { background: var(--panic); color: #fff; border-radius: 14px; padding: 14px; animation: pulso 1s infinite; }
+.alerta-panico h2 { text-transform: uppercase; font-size: 1.5rem; }
+.alerta-panico p { margin: 4px 0; }
+.alerta-panico .sub { color: #ffe3dc; }
+.btn.grande.atender { background: #fff; color: var(--panic); box-shadow: none; margin-top: 8px; }
+@keyframes pulso { 50% { box-shadow: 0 0 0 6px rgba(255,255,255,.55); } }
+@media (prefers-reduced-motion: reduce) { .alerta-panico { animation: none; } }
+
+/* Panel en vivo */
+.vivo-conexion { font-weight: 700; }
+.vivo-conexion.ok { color: #17612e; }
+.vivo-conexion.mal { color: var(--panic); }
+.vivo-resumen { margin-bottom: 14px; }
+.vivo-puestos { list-style: none; margin: 8px 0 18px; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 10px; }
+.vivo-puesto { background: var(--surface); border-radius: 12px; padding: 12px 14px; display: grid; gap: 4px; border-left: 8px solid var(--line); box-shadow: 0 1px 6px rgba(20,32,74,.07); }
+.vivo-puesto.e-cubierto { border-left-color: #2e9e57; }
+.vivo-puesto.e-en_rondin { border-left-color: #2b6fd6; }
+.vivo-puesto.e-descubierto { border-left-color: var(--amber); }
+.vivo-puesto.e-alerta, .vivo-puesto.e-panico { border-left-color: var(--panic); background: #fbeae6; }
+.vivo-puesto.e-panico { animation: pulso 1s infinite; }
+.vivo-cab { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.vivo-etq.e-cubierto { background: #dff3e4; color: #17612e; }
+.vivo-etq.e-en_rondin { background: #dbe8ff; color: #1b3f86; }
+.vivo-etq.e-descubierto { background: #fff0cf; color: #7a5200; }
+.vivo-etq.e-alerta, .vivo-etq.e-panico { background: var(--panic); color: #fff; }
+.vivo-alerta { color: #7d210a; font-weight: 700; font-size: .92rem; }
+.vivo-eventos { margin-top: 6px; }

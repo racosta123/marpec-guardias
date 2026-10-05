@@ -1,10 +1,12 @@
 // Rondín del guardia: escanea el QR de cada punto con la cámara de la app (mismo lector que la asistencia),
 // con barra de progreso, nota opcional y foto opcional por punto. El Worker valida todo (QR, turno, GPS, orden).
-import { abrirCamara, capturarSelfie, detener, escanearQr, hayConexion, mostrarEnVideo, pedirUbicacion } from "../camara.js";
+import { abrirCamara, capturarSelfie, detener, escanearQr, mostrarEnVideo, pedirUbicacion } from "../camara.js";
+import { enviarRegistro } from "../envio.js";
+import { ahoraEstimado, listar, metaGet, metaSet } from "../cola.js";
+import { rondinLocal } from "../rondin-local.js";
 import { campo, h, limpiar, poner, toast } from "../ui.js";
 import { hora } from "../tz.js";
 
-const SIN_CONEXION = "Sin conexión, intenta de nuevo.";
 const FORMATO_QR = /^MPC2\.[A-Za-z0-9_-]+\.\d+\.[A-Za-z0-9_-]+$/;
 
 export function abrirRondin({ turno, api, alTerminar }) {
@@ -12,7 +14,7 @@ export function abrirRondin({ turno, api, alTerminar }) {
   const caja = h("div", { class: "marcar-caja" });
   fondo.append(caja);
   document.body.append(fondo);
-  let stream = null, detenerQr = null, actual = null;
+  let stream = null, detenerQr = null, actual = null, sinRed = false;
 
   const liberar = () => { if (detenerQr) { detenerQr(); detenerQr = null; } if (stream) { detener(stream); stream = null; } };
   const cerrar = () => { liberar(); fondo.remove(); alTerminar(); };
@@ -20,12 +22,25 @@ export function abrirRondin({ turno, api, alTerminar }) {
     h("span", { class: "marcar-paso" }, actual ? `Rondín de las ${hora(actual.programadoMs)}` : "Rondín"),
     h("button", { class: "btn-icono", type: "button", "aria-label": "Cerrar", onclick: cerrar }, "✕"), h("h2", {}, titulo));
 
+  // En línea: lo que dice el servidor (y se guarda copia). Sin conexión: la última copia + lo capturado y aún no enviado.
   async function cargar() {
-    if (!hayConexion()) throw new Error(SIN_CONEXION);
-    const r = await api(`/rondines/proximo?turnoId=${encodeURIComponent(turno.id)}`, { method: "GET" });
+    let r;
+    try {
+      r = await api(`/rondines/proximo?turnoId=${encodeURIComponent(turno.id)}`, { method: "GET" });
+      const previo = await metaGet(`rondin:${turno.id}`);
+      metaSet(`rondin:${turno.id}`, { ...r, plantilla: r.actual ? r.actual.puntos.map(({ puntoId, nombre, orden, descripcion, requiereGps }) => ({ puntoId, nombre, orden, descripcion, requiereGps })) : previo?.plantilla || null });
+    } catch (e) {
+      if (e.status) throw e;
+      const copia = await metaGet(`rondin:${turno.id}`);
+      if (!copia) throw new Error("Sin conexión: abre el rondín al menos una vez con internet para poder rondinear sin señal.");
+      const cola = (await listar()).filter((x) => x.tipo === "rondin" && x.turnoId === turno.id && x.estado === "pendiente");
+      r = rondinLocal(copia, cola, ahoraEstimado());
+      sinRed = true;
+    }
     if (!r.hay) throw new Error(r.motivo === "sin_entrada" ? "Primero marca tu entrada." : r.motivo === "turno_cerrado" ? "Ya cerraste tu turno." : "Este sitio no tiene rondines programados en tu turno.");
     if (!r.actual) throw new Error(r.proximoMs ? `No hay un rondín en este momento. El siguiente es a las ${hora(r.proximoMs)}.` : "No hay un rondín en este momento.");
     actual = r.actual;
+    if (actual && actual.hechos >= actual.total && actual.total > 0) actual.completoLocal = true;
     return r;
   }
 
@@ -43,7 +58,7 @@ export function abrirRondin({ turno, api, alTerminar }) {
     limpiar(caja);
     poner(caja, cab("Escanea los puntos"),
       h("progress", { class: "progreso", max: actual.total, value: actual.hechos, "aria-label": "Progreso del rondín" }),
-      h("p", { class: "sub" }, `${actual.hechos} de ${actual.total} puntos`), video, aviso, lista());
+      h("p", { class: "sub" }, `${actual.hechos} de ${actual.total} puntos${sinRed ? " · SIN CONEXIÓN: se enviarán solos" : ""}`), video, aviso, lista());
     try {
       stream = await abrirCamara("environment");
       await mostrarEnVideo(video, stream);
@@ -107,21 +122,30 @@ export function abrirRondin({ turno, api, alTerminar }) {
     ubicar();
     enviar.addEventListener("click", async () => {
       limpiar(error);
-      if (!hayConexion()) { poner(error, h("p", { class: "error", role: "alert" }, SIN_CONEXION)); return; }
       enviar.disabled = true; enviar.textContent = "Registrando…";
       try {
-        const r = await api("/rondines/escanear", { body: {
-          turnoId: turno.id, qr, nota: nota.value, horaDispositivoMs: Date.now(),
-          ...(estado.gps ? { lat: estado.gps.lat, lng: estado.gps.lng, precisionM: estado.gps.precisionM } : {}),
-          ...(estado.foto ? { foto: estado.foto.base64 } : {}),
-        } });
+        const res = await enviarRegistro({
+          ruta: "/rondines/escanear", tipo: "rondin", resumen: p.nombre, turnoId: turno.id, meta: { puntoId: p.puntoId, puntoNombre: p.nombre },
+          body: {
+            turnoId: turno.id, qr, nota: nota.value, horaDispositivoMs: Date.now(),
+            ...(estado.gps ? { lat: estado.gps.lat, lng: estado.gps.lng, precisionM: estado.gps.precisionM } : {}),
+            ...(estado.foto ? { foto: estado.foto.base64 } : {}),
+          },
+        });
         if (estado.foto) URL.revokeObjectURL(estado.foto.url);
+        if (res.encolado) {
+          toast(`✔ ${p.nombre} guardado SIN CONEXIÓN; se enviará solo.`);
+          await cargar();
+          if (!actual || actual.completoLocal) return pantallaCompleto();
+          return pantallaEscaneo({ texto: actual.modo === "ordenada" ? `Siguiente: «${actual.puntos.find((x) => x.puntoId === actual.siguientePuntoId)?.nombre || "—"}».` : "Escanea el siguiente punto pendiente." });
+        }
+        const r = res.data;
         toast(`✔ ${r.punto} (${r.hechos}/${r.total})`);
         if (r.completo) return pantallaCompleto();
         await cargar();
         pantallaEscaneo({ texto: r.siguiente ? `Siguiente: «${r.siguiente}».` : "Escanea el siguiente punto pendiente." });
       } catch (e) {
-        poner(error, h("p", { class: "error", role: "alert" }, e.status ? e.message : SIN_CONEXION));
+        poner(error, h("p", { class: "error", role: "alert" }, e.status ? e.message : e.message || "No se pudo guardar el registro."));
         enviar.disabled = false; enviar.textContent = "Registrar punto";
       }
     });

@@ -1,10 +1,13 @@
 // Libro del guardia (Fase 5): novedades, incidencias (hasta 3 fotos en vivo), visitantes y bitácora del turno.
 // Todo se envía al Worker (hora del servidor); aquí solo se captura y se muestra.
-import { abrirCamara, capturarSelfie, detener, hayConexion, mostrarEnVideo, pedirUbicacion } from "../camara.js";
+import { abrirCamara, capturarSelfie, detener, mostrarEnVideo, pedirUbicacion } from "../camara.js";
+import { enviarRegistro } from "../envio.js";
+import { listar, metaGet, metaSet } from "../cola.js";
 import { accion, campo, h, limpiar, modal, poner, toast } from "../ui.js";
 import { hora } from "../tz.js";
 
-const SIN_CONEXION = "Sin conexión, intenta de nuevo.";
+const SIN_CONEXION = "Sin conexión: esta consulta necesita internet.";
+const GUARDADO_LOCAL = "Guardado SIN CONEXIÓN. Se enviará solo al volver la señal; el servidor lo validará.";
 const MOTIVOS = [["visita", "Visita"], ["proveedor", "Proveedor"], ["paqueteria", "Paquetería"], ["servicio", "Servicio"], ["otro", "Otro"]];
 const ICONO = { entrada: "🟢", novedad: "📝", rondin: "🔁", incidencia: "⚠️", visitante_entrada: "🚶", visitante_salida: "↩️", salida: "🔴" };
 
@@ -32,16 +35,19 @@ export function abrirNovedad({ turno, api, alTerminar }) {
   const m = modal("Nueva novedad", f);
   f.addEventListener("submit", async (e) => {
     e.preventDefault();
-    if (!hayConexion()) return toast(SIN_CONEXION, "error");
-    const r = await accion(f.querySelector("button"), () => api("/novedades", { body: { turnoId: turno.id, texto: texto.value } }), "Novedad registrada.");
-    if (r) { m.cerrar(); alTerminar(); }
+    const r = await accion(f.querySelector("button"), () => enviarRegistro({ ruta: "/novedades", tipo: "novedad", resumen: "Novedad", turnoId: turno.id, body: { turnoId: turno.id, texto: texto.value } }));
+    if (r) { toast(r.encolado ? GUARDADO_LOCAL : "Novedad registrada."); m.cerrar(); alTerminar(); }
   });
 }
 
 // ---------------------------------------------------------------- incidencia
 export async function abrirIncidencia({ turno, api, alTerminar }) {
   let catalogo;
-  try { catalogo = await api("/catalogo/incidencias", { method: "GET" }); } catch (e) { toast(e.status ? e.message : SIN_CONEXION, "error"); return; }
+  try { catalogo = await api("/catalogo/incidencias", { method: "GET" }); metaSet("catalogoIncidencias", catalogo); }
+  catch (e) {
+    catalogo = e.status ? null : await metaGet("catalogoIncidencias"); // sin conexión: el último catálogo visto
+    if (!catalogo) { toast(e.status ? e.message : "Sin conexión y aún no se descargó el catálogo de incidencias. Conéctate una vez para poder reportar sin internet.", "error"); return; }
+  }
   const tipo = h("select", { required: true }, catalogo.tipos.map((t) => h("option", { value: t.id }, t.nombre)));
   const gravedad = h("select", { value: "media" }, h("option", { value: "baja" }, "Baja"), h("option", { value: "media" }, "Media"), h("option", { value: "alta" }, "ALTA — requiere atención inmediata"));
   const desc = h("textarea", { rows: 5, maxlength: 1000, required: true, placeholder: "Describe qué ocurrió, dónde y a qué hora." });
@@ -63,11 +69,10 @@ export async function abrirIncidencia({ turno, api, alTerminar }) {
   const m = modal("Reportar incidencia", f);
   f.addEventListener("submit", async (e) => {
     e.preventDefault();
-    if (!hayConexion()) return toast(SIN_CONEXION, "error");
     const body = { turnoId: turno.id, tipoId: tipo.value, gravedad: gravedad.value, descripcion: desc.value, horaDispositivoMs: Date.now(), ...(fotos.length ? { fotos: fotos.map((x) => x.base64) } : {}),
       ...(gps.v ? { lat: gps.v.lat, lng: gps.v.lng, precisionM: gps.v.precisionM } : {}) };
-    const r = await accion(f.querySelector("button[type=submit]"), () => api("/incidencias", { body }), "Incidencia enviada. Tu supervisor ya puede verla.");
-    if (r) { for (const x of fotos) URL.revokeObjectURL(x.url); m.cerrar(); alTerminar(); }
+    const r = await accion(f.querySelector("button[type=submit]"), () => enviarRegistro({ ruta: "/incidencias", tipo: "incidencia", resumen: `${gravedad.value.toUpperCase()}: ${tipo.selectedOptions[0]?.textContent || ""}`, turnoId: turno.id, body }));
+    if (r) { toast(r.encolado ? GUARDADO_LOCAL : "Incidencia enviada. Tu supervisor ya puede verla."); for (const x of fotos) URL.revokeObjectURL(x.url); m.cerrar(); alTerminar(); }
   });
 }
 
@@ -79,17 +84,29 @@ export async function abrirVisitantes({ turno, api, alTerminar }) {
     limpiar(cont);
     poner(cont, h("p", { class: "vacio" }, "Cargando…"));
     let r;
-    try { r = await api(`/visitantes/dentro?turnoId=${encodeURIComponent(turno.id)}`, { method: "GET" }); } catch (e) { limpiar(cont); poner(cont, h("p", { class: "error" }, e.status ? e.message : SIN_CONEXION)); return; }
+    let sinRed = false;
+    try { r = await api(`/visitantes/dentro?turnoId=${encodeURIComponent(turno.id)}`, { method: "GET" }); metaSet(`dentro:${turno.id}`, r); }
+    catch (e) {
+      r = e.status ? null : await metaGet(`dentro:${turno.id}`); // sin conexión: la última lista vista
+      if (!r) { limpiar(cont); poner(cont, h("p", { class: "error" }, e.status ? e.message : "Sin conexión. Podrás registrar visitantes: se guardan y se envían solos.")); if (!e.status) poner(cont, h("button", { class: "btn primario grande", type: "button", onclick: () => formEntrada() }, "+ REGISTRAR ENTRADA")); return; }
+      sinRed = true;
+    }
+    // Lo capturado sin conexión y aún no enviado: entradas locales (salvo las que ya tienen salida encolada) y salidas encoladas
+    const cola = (await listar()).filter((x) => x.turnoId === turno.id && x.estado === "pendiente");
+    const salenLocal = new Set(cola.filter((x) => x.tipo === "visitante_salida").map((x) => x.body.visitanteId || x.body.visitanteClientId));
+    const locales = cola.filter((x) => x.tipo === "visitante_entrada" && !salenLocal.has(x.id)).map((x) => ({ id: null, clientId: x.id, nombre: x.body.nombre, visitaA: x.body.visitaA, motivo: x.body.motivo, empresa: x.body.empresa, placas: x.body.placas, entradaMs: x.horaEstimadaMs, pendiente: true }));
+    r = { ...r, dentro: [...r.dentro.filter((v) => !salenLocal.has(v.id)), ...locales] };
     limpiar(cont);
     poner(cont,
       h("button", { class: "btn primario grande", type: "button", onclick: () => formEntrada() }, "+ REGISTRAR ENTRADA"),
+      sinRed ? h("p", { class: "alerta" }, "Sin conexión: se muestra la última lista conocida más lo que registres ahora.") : null,
       h("h3", { class: "titulo-seccion" }, `Dentro del sitio ahora (${r.dentro.length})`),
       r.dentro.length ? h("ul", { class: "lista" }, r.dentro.map((v) => h("li", { class: "item" }, h("div", { class: "item-info" },
         h("strong", {}, v.nombre), h("span", { class: "sub" }, `Visita a ${v.visitaA} · ${(MOTIVOS.find((x) => x[0] === v.motivo) || [0, v.motivo])[1]}${v.empresa ? " · " + v.empresa : ""}${v.placas ? " · placas " + v.placas : ""}`),
-        h("span", { class: "sub" }, `Entró a las ${hora(v.entradaMs)}${v.guardiaNombre ? " (registró " + v.guardiaNombre + ")" : ""}`)),
+        h("span", { class: "sub" }, `Entró a las ${hora(v.entradaMs)}${v.guardiaNombre ? " (registró " + v.guardiaNombre + ")" : ""}`), v.pendiente ? h("span", { class: "etq info" }, "Pendiente de enviar") : null),
       h("div", { class: "item-acc" }, h("button", { class: "btn chico secundario", type: "button", onclick: async (e) => {
-        const ok = await accion(e.currentTarget, () => api("/visitantes/salida", { body: { turnoId: turno.id, visitanteId: v.id } }), `Salida de ${v.nombre} registrada.`);
-        if (ok) cargar();
+        const ok = await accion(e.currentTarget, () => enviarRegistro({ ruta: "/visitantes/salida", tipo: "visitante_salida", resumen: v.nombre, turnoId: turno.id, body: { turnoId: turno.id, ...(v.id ? { visitanteId: v.id } : { visitanteClientId: v.clientId }) } }));
+        if (ok) { toast(ok.encolado ? GUARDADO_LOCAL : `Salida de ${v.nombre} registrada.`); cargar(); }
       } }, "Registrar salida")))))
         : h("p", { class: "vacio" }, "No hay visitantes dentro."));
   }
@@ -112,10 +129,9 @@ export async function abrirVisitantes({ turno, api, alTerminar }) {
     poner(cont, f);
     f.addEventListener("submit", async (e) => {
       e.preventDefault();
-      if (!hayConexion()) return toast(SIN_CONEXION, "error");
       const body = { turnoId: turno.id, nombre: nombre.value, visitaA: visita.value, motivo: motivo.value, empresa: empresa.value, placas: placas.value, ...(foto ? { foto: foto.base64 } : {}) };
-      const r = await accion(f.querySelector("button[type=submit]"), () => api("/visitantes/entrada", { body }), "Entrada registrada.");
-      if (r) { if (foto) URL.revokeObjectURL(foto.url); cargar(); alTerminar(); }
+      const r = await accion(f.querySelector("button[type=submit]"), () => enviarRegistro({ ruta: "/visitantes/entrada", tipo: "visitante_entrada", resumen: nombre.value.trim(), turnoId: turno.id, body }));
+      if (r) { toast(r.encolado ? GUARDADO_LOCAL : "Entrada registrada."); if (foto) URL.revokeObjectURL(foto.url); cargar(); alTerminar(); }
     });
   }
   cargar();
@@ -128,7 +144,7 @@ export function lineaDeTiempo(b) {
     h("p", { class: "sub" }, `${b.sitioNombre} · ${b.guardiaNombre} · ${hora(b.inicioMs)}–${hora(b.finMs)}`),
     b.items.length ? h("ol", { class: "tiempo" }, b.items.map((x) => h("li", { class: `t-${x.tipo} ${x.gravedad === "alta" ? "t-alta" : ""}` },
       h("span", { class: "t-hora" }, hora(x.tsMs)), h("span", { class: "t-icono" }, ICONO[x.tipo] || "•"),
-      h("div", { class: "t-txt" }, h("strong", {}, x.titulo), x.detalle ? h("p", {}, x.detalle) : null)))) : h("p", { class: "vacio" }, "Sin movimientos en este turno."),
+      h("div", { class: "t-txt" }, h("strong", {}, x.titulo), x.sin_conexion ? h("span", { class: "etq prueba etq-sc" }, "Sin conexión") : null, x.detalle ? h("p", {}, x.detalle) : null)))) : h("p", { class: "vacio" }, "Sin movimientos en este turno."),
     b.visitantesDentro?.length ? h("p", { class: "alerta" }, `Siguen dentro del sitio: ${b.visitantesDentro.map((v) => `${v.nombre} (desde ${hora(v.entradaMs)})`).join(", ")}.`) : null);
 }
 

@@ -4,50 +4,86 @@ import { h, limpiar, poner } from "../ui.js";
 import { diaLargo, duracionH, hora } from "../tz.js";
 import { abrirMarcado } from "./marcar.js";
 import { abrirRondin } from "./rondin.js";
+import { listar, metaGet, metaSet, ahoraEstimado } from "../cola.js";
+import { rondinConRespaldo } from "../rondin-local.js";
 import { abrirBitacora, abrirIncidencia, abrirNovedad, abrirVisitantes } from "./libro.js";
 
 const H = 3600e3;
+
+let turnoActual = null; // turno vigente del guardia (lo usa el botón de pánico para ubicar el sitio)
+export const turnoVigenteId = () => turnoActual;
+
+const pick = (o, ks) => Object.fromEntries(ks.filter((k) => o && o[k] !== undefined).map((k) => [k, o[k]]));
+const CAMPOS_T = ["sitioId", "sitioNombre", "inicioMs", "finMs", "estado", "plantilla"];
+const CAMPOS_A = ["estado", "entradaMs", "salidaMs", "retardo", "retardoMin", "falta", "minutosExtra", "extraEstado", "relevoAlerta", "relevoRequerido", "relevoLlegado", "cierreAutorizado", "ventanaEntradaDesdeMs"];
+const CAMPOS_S = ["nombre", "direccion", "consignas", "lat", "lng", "radioM", "telefonoEmergencia"];
+const conTiempo = (p, ms) => Promise.race([p, new Promise((_, rej) => setTimeout(() => rej(new Error("tiempo agotado")), ms))]);
+
+// Turno vigente, siguientes turnos y sitio, leídos de Firestore (reglas: solo lo del propio guardia).
+async function cargarEnLinea({ db, user }) {
+  const ahora = Date.now();
+  const snap = await getDocs(query(collection(db, "turnos"),
+    where("guardiaUid", "==", user.uid), where("inicioMs", ">=", ahora - 48 * H), orderBy("inicioMs")));
+  const candidatos = snap.docs.map((d) => ({ id: d.id, ...d.data() })).filter((t) => t.estado === "programado");
+  // Estado de asistencia de cada turno (lo calcula el Worker; puede no existir aún)
+  const conEstado = [];
+  for (const t of candidatos) {
+    let a = null;
+    try { const s = await getDoc(doc(db, "asistencias", t.id)); if (s.exists()) a = s.data(); } catch (e) { if (e.code !== "permission-denied") throw e; /* sin acceso: se omite; cualquier otro error (red) cae a la copia local */ }
+    conEstado.push({ t: { id: t.id, ...pick(t, CAMPOS_T) }, a: a ? pick(a, CAMPOS_A) : null });
+  }
+  // Turno vigente: no cumplido y (aún no termina, o terminó pero sigue sin cerrar tras haber entrado)
+  const vigente = conEstado.find(({ t, a }) => a?.estado !== "cumplido" && a?.estado !== "falta" && (t.finMs > ahora || (a?.entradaMs && !a?.salidaMs))) || null;
+  const siguientes = conEstado.filter(({ t }) => t.inicioMs > ahora && t.id !== vigente?.t.id).slice(0, 6).map(({ t }) => ({ t }));
+  let sitio = null;
+  if (vigente) { try { const s = await getDoc(doc(db, "sitios", vigente.t.sitioId)); if (s.exists()) sitio = pick(s.data(), CAMPOS_S); } catch (e) { if (e.code !== "permission-denied") throw e; /* sin acceso: se omite; cualquier otro error (red) cae a la copia local */ } }
+  return { vigente, siguientes, sitio };
+}
 
 export async function vistaGuardia(raiz, ctx) {
   const { db, api, user } = ctx;
   limpiar(raiz);
   poner(raiz, h("p", { class: "vacio" }, "Cargando tu turno…"));
   const ahora = Date.now();
-  const snap = await getDocs(query(collection(db, "turnos"),
-    where("guardiaUid", "==", user.uid), where("inicioMs", ">=", ahora - 48 * H), orderBy("inicioMs")));
-  const candidatos = snap.docs.map((d) => ({ id: d.id, ...d.data() })).filter((t) => t.estado === "programado");
-
-  // Estado de asistencia de cada turno (lo calcula el Worker; puede no existir aún)
-  const conEstado = [];
-  for (const t of candidatos) {
-    let a = null;
-    try { const s = await getDoc(doc(db, "asistencias", t.id)); if (s.exists()) a = s.data(); } catch { /* sin acceso */ }
-    conEstado.push({ t, a });
+  // En línea: Firestore (y se guarda copia en el celular). Sin conexión: la última copia + lo capturado y aún no enviado.
+  let datos, desdeCopia = false;
+  try {
+    if (navigator.onLine === false) throw new Error("sin conexión");
+    datos = await conTiempo(cargarEnLinea(ctx), 12000);
+    metaSet("ctxGuardia", { uid: user.uid, ...datos, guardadoMs: Date.now() });
+    metaSet("contactoEmergencia", { telefono: datos.sitio?.telefonoEmergencia || "", sitioNombre: datos.vigente?.t.sitioNombre || "" });
+  } catch (e) {
+    const c = await metaGet("ctxGuardia");
+    if (!c || c.uid !== user.uid) throw e;
+    datos = c; desdeCopia = true;
   }
-  // Turno vigente: no cumplido y (aún no termina, o terminó pero sigue sin cerrar tras haber entrado)
-  const vigente = conEstado.find(({ t, a }) => a?.estado !== "cumplido" && a?.estado !== "falta" && (t.finMs > ahora || (a?.entradaMs && !a?.salidaMs)));
-  const siguientes = conEstado.filter(({ t }) => t.inicioMs > ahora && t.id !== vigente?.t.id).slice(0, 6);
+  const { vigente, siguientes, sitio } = datos;
+  turnoActual = vigente?.t.id ?? null;
+  // Registros capturados sin conexión que aún no llegan al servidor: se reflejan aquí como pendientes.
+  const cola = (await listar()).filter((x) => x.uid === user.uid && x.estado === "pendiente" && vigente && x.turnoId === vigente.t.id);
+  const pend = { entrada: cola.find((x) => x.tipo === "entrada"), salida: cola.find((x) => x.tipo === "salida") };
 
   limpiar(raiz);
-  if (!navigator.onLine) poner(raiz, h("p", { class: "alerta" }, "Sin conexión: para marcar necesitas internet."));
+  if (desdeCopia) poner(raiz, h("p", { class: "alerta" }, "Sin conexión: se muestra tu último turno guardado en este celular. Puedes marcar y reportar; todo se enviará solo al volver la señal."));
   if (!vigente) {
     poner(raiz, h("p", { class: "vacio" }, "No tienes turnos asignados por ahora."), listaSiguientes(siguientes));
     return;
   }
 
-  const { t, a } = vigente;
-  let sitio = null;
-  try { const s = await getDoc(doc(db, "sitios", t.sitioId)); if (s.exists()) sitio = s.data(); } catch { /* sin acceso */ }
-  const recargar = () => vistaGuardia(raiz, ctx);
+  const { t } = vigente;
+  const a = { ...(vigente.a || {}) };
+  if (pend.entrada && !a.entradaMs) Object.assign(a, { entradaMs: pend.entrada.horaEstimadaMs, falta: false, entradaPendiente: true });
+  if (pend.salida && !a.salidaMs) Object.assign(a, { salidaMs: pend.salida.horaEstimadaMs, salidaPendiente: true });
+  const recargar = (marca) => { void marca; return vistaGuardia(raiz, ctx); };
 
   const entradaMs = a?.entradaMs ?? null;
   const salidaMs = a?.salidaMs ?? null;
   const ventanaDesde = a?.ventanaEntradaDesdeMs ?? t.inicioMs - 30 * 60000;
   let etiqueta, clase, accion = null, ayuda = null;
-  if (salidaMs) { etiqueta = "Turno cerrado"; clase = "ok"; }
+  if (salidaMs) { etiqueta = a.salidaPendiente ? "Turno cerrado (salida pendiente de enviar)" : "Turno cerrado"; clase = a.salidaPendiente ? "info" : "ok"; }
   else if (entradaMs) {
     const pendiente = a?.relevoAlerta;
-    etiqueta = pendiente ? "Salida pendiente de relevo" : ahora > t.finMs ? "Salida pendiente" : "En turno";
+    etiqueta = pendiente ? "Salida pendiente de relevo" : ahora > t.finMs ? "Salida pendiente" : a.entradaPendiente ? "En turno (entrada pendiente de enviar)" : "En turno";
     clase = pendiente ? "mal" : "ok";
     accion = "salida";
     if (a?.relevoRequerido && !a?.relevoLlegado && !a?.cierreAutorizado)
@@ -99,12 +135,12 @@ export async function vistaGuardia(raiz, ctx) {
   // Rondines (solo con entrada marcada y turno abierto)
   if (entradaMs && !salidaMs) {
     try {
-      const r = await api(`/rondines/proximo?turnoId=${encodeURIComponent(t.id)}`, { method: "GET" });
+      const { r, sinRed } = await rondinConRespaldo(api, t.id, { listar, metaGet, metaSet, ahoraEstimado });
       const dest = raiz.querySelector("#rondines-card");
       if (r.hay && dest) {
         const ESTADO = { completo: ["✔ Completo", "ok"], incompleto: ["Incompleto", "mal"], no_iniciado: ["No iniciado", "mal"], en_curso: ["En curso", "info"], pendiente: ["Por iniciar", "info"], programado: ["Programado", "info"], justificado: ["Justificado", "info"], no_exigible: ["—", "info"] };
         const a = r.actual;
-        poner(dest, h("section", { class: "tarjeta" }, h("h4", { class: "titulo-seccion" }, "Rondines"),
+        poner(dest, h("section", { class: "tarjeta" }, h("h4", { class: "titulo-seccion" }, sinRed ? "Rondines (sin conexión)" : "Rondines"),
           a ? [h("p", {}, h("b", {}, `Rondín de las ${hora(a.programadoMs)}`), ` · ${a.hechos} de ${a.total} puntos · plazo ${hora(a.venceMs)}`),
             h("progress", { class: "progreso", max: a.total, value: a.hechos, "aria-label": "Progreso del rondín" }),
             h("button", { class: "btn primario grande", type: "button", onclick: () => abrirRondin({ turno: t, api, alTerminar: recargar }) }, a.hechos > 0 ? "CONTINUAR RONDÍN" : "INICIAR RONDÍN")]

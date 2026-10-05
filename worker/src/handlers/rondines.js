@@ -7,6 +7,9 @@ import { HttpError, commit, getDocument, runQuery } from "../google.js";
 import { verificarFirmaPunto } from "../qr.js";
 import { validarFoto } from "./marcas.js";
 import { contextoTurno, recalcularRondin, recalcularRondinesVentana } from "./rondinesSvc.js";
+import { cargarConfig } from "./asistenciaSvc.js";
+import { camposOffline, escriturasRegistro, leerTiempo, siEsDuplicado } from "../offline.js";
+import { turnoActivoDelGuardia } from "./turnoActivo.js";
 
 const BODY_MAX = 230 * 1024;
 const MIN = 60000;
@@ -19,18 +22,12 @@ async function turnoDelGuardia(env, actor, turnoId) {
   return turno;
 }
 
-// Turno activo para rondinear: propio, programado, con entrada marcada y sin salida.
-async function exigirTurnoActivo(env, turno, turnoId) {
-  if (turno.estado !== "programado") throw new HttpError(409, "sin_turno_activo", "Este turno ya no está activo.");
-  if (!(await getDocument(env, `marcas/${turnoId}_entrada`))) throw new HttpError(409, "sin_entrada", "Primero debes marcar tu entrada.");
-  if (await getDocument(env, `marcas/${turnoId}_salida`)) throw new HttpError(409, "sin_turno_activo", "Ya cerraste tu turno.");
-}
-
 // Calcula los rondines con ventana vigente (o próximos) y devuelve el mapa de estados + docs.
-async function estadosActivos(env, turnoId, ctx, ahora) {
+// `ahora` es la hora del evento (la estimada si vino sin conexión); `real` la hora actual del servidor con la que se calculan estados.
+async function estadosActivos(env, turnoId, ctx, ahora, real = ahora) {
   const docs = {};
   for (const s of ctx.slots) {
-    if (ahora >= s.abreMs - 10 * MIN && ahora <= s.venceMs + 10 * MIN) docs[s.indice] = await recalcularRondin(env, turnoId, s, ctx, { ahora });
+    if (ahora >= s.abreMs - 10 * MIN && ahora <= s.venceMs + 10 * MIN) docs[s.indice] = await recalcularRondin(env, turnoId, s, ctx, { ahora: real });
   }
   const guardados = await runQuery(env, "rondines", [{ campo: "turnoId", op: "EQUAL", valor: turnoId }]);
   const estados = {};
@@ -77,9 +74,11 @@ export async function escanearPunto(env, request) {
   requireRol(actor, "guardia");
   const b = await readJson(request, BODY_MAX);
   const turnoId = vId(b.turnoId, "turnoId");
-  const ahora = Date.now(); // hora del servidor
+  const config = await cargarConfig(env);
+  const t = await leerTiempo(env, actor, b, config); // hora del servidor (o la estimada, acotada, si vino sin conexión)
+  const ahora = t.ahora;
   const turno = await turnoDelGuardia(env, actor, turnoId);
-  await exigirTurnoActivo(env, turno, turnoId);
+  await turnoActivoDelGuardia(env, actor, turnoId, t, config);
 
   // QR del punto: formato MPC2 firmado, versión vigente y de ESTE sitio. Un QR de asistencia (MPC1) no sirve.
   const qrInvalido = () => new HttpError(400, "qr_invalido", "Ese código QR no es un punto de control válido de tu puesto.");
@@ -91,10 +90,10 @@ export async function escanearPunto(env, request) {
   const puntoId = q.puntoId; // getDocument no devuelve el id: se toma del QR ya verificado
   const ctx = await contextoTurno(env, turnoId, turno);
   if (!ctx || !ctx.programa || !ctx.slots.length) throw new HttpError(409, "sin_rondin_activo", "Este sitio no tiene rondines programados para tu turno.");
-  const { docs, estados } = await estadosActivos(env, turnoId, ctx, ahora);
+  const { docs, estados } = await estadosActivos(env, turnoId, ctx, ahora, t.recibidoMs);
   const slot = elegirSlot(ctx.slots, estados, ahora);
   if (!slot) throw new HttpError(409, "sin_rondin_activo", "No hay un rondín programado en este momento.");
-  const rondin = docs[slot.indice] || (await recalcularRondin(env, turnoId, slot, ctx, { ahora }));
+  const rondin = docs[slot.indice] || (await recalcularRondin(env, turnoId, slot, ctx, { ahora: t.recibidoMs }));
   const rondinId = rondin.rondinId;
 
   const enRondin = rondin.requeridos.find((r) => r.puntoId === puntoId);
@@ -131,17 +130,19 @@ export async function escanearPunto(env, request) {
         tsMs: ahora, lat, lng, precisionM, distanciaM: dist === null ? null : Math.round(dist * 10) / 10, nota, fotoKey, fotoBytes: foto ? foto.length : null,
         horaDispositivoMs, desfaseDispositivoMs: horaDispositivoMs === null ? null : horaDispositivoMs - ahora,
         ...(turno.prueba === true || punto.prueba === true ? { prueba: true } : {}),
+        ...camposOffline(t),
       },
       mustNotExist: true, serverTimeField: "ts", // un solo registro por punto y rondín; inmutable
-    }]);
+    }, ...escriturasRegistro(t, { tipo: "rondin", titulo: `Rondín: ${punto.nombre}`, refPath: `escaneos/${rondinId}_${puntoId}`, sitioId: turno.sitioId, sitioNombre: turno.sitioNombre || "", supervisorUid: turno.supervisorUid ?? null, guardiaUid: actor.uid, guardiaNombre: actor.perfil.nombre, prueba: turno.prueba === true || punto.prueba === true })]);
   } catch (e) {
     if (fotoKey) await env.SELFIES.delete(fotoKey).catch(() => {});
+    await siEsDuplicado(env, e, t);
     if (e.status === 409) throw new HttpError(409, "ya_escaneado", `Ya registraste «${punto.nombre}» en este rondín.`);
     throw e;
   }
-  const r = await recalcularRondin(env, turnoId, slot, ctx, { ahora });
+  const r = await recalcularRondin(env, turnoId, slot, ctx, { ahora: t.recibidoMs });
   const sig = r.requeridos.find((x) => x.puntoId === r.siguientePuntoId);
-  return { status: 201, body: { ok: true, tsMs: ahora, punto: punto.nombre, hechos: r.hechos, total: r.total, estado: r.estado, completo: r.estado === "completo", siguiente: sig ? sig.nombre : null } };
+  return { status: 201, body: { ok: true, tsMs: ahora, sin_conexion: t.sin_conexion, punto: punto.nombre, hechos: r.hechos, total: r.total, estado: r.estado, completo: r.estado === "completo", siguiente: sig ? sig.nombre : null } };
 }
 
 // ------------------------------------------------------------------ admin / supervisor

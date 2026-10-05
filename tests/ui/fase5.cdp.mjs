@@ -55,7 +55,7 @@ try {
   await ev("window.__llamadas.length = 0; document.querySelector('.modal textarea').value = 'Se cambió la bombilla del pasillo.'; document.querySelector('.modal form').requestSubmit()");
   await espera(700);
   const nv = await llamada("/novedades");
-  check("novedad: se envía solo turno y texto (el servidor pone la hora)", Boolean(nv) && nv.body.turnoId === "t5" && nv.body.texto === "Se cambió la bombilla del pasillo." && Object.keys(nv.body).sort().join() === "texto,turnoId", JSON.stringify(nv?.body));
+  check("novedad: se envía solo turno y texto (el servidor pone la hora)", Boolean(nv) && nv.body.turnoId === "t5" && nv.body.texto === "Se cambió la bombilla del pasillo." && Object.keys(nv.body).filter((k) => k !== "sync").sort().join() === "texto,turnoId", JSON.stringify(nv?.body));
 
   await clic("/Incidencia/i", ".libro-btn");
   const m1 = await conTexto(".modal", /Tipo de incidencia/i);
@@ -93,7 +93,7 @@ try {
   await ev("window.__llamadas.length = 0; const f = document.querySelector('.modal form'); const t = f.querySelectorAll('input[type=text]'); t[0].value = 'Carlos Servicio'; t[1].value = 'Casa 5'; f.querySelector('select').value = 'servicio'; t[2].value = 'Plomería SA'; t[3].value = 'xyz-789'; f.requestSubmit()");
   await espera(900);
   const ve = await llamada("/visitantes/entrada");
-  check("visitante: entrada con exactamente los campos permitidos (sin identificaciones)", Boolean(ve) && Object.keys(ve.body).sort().join() === "empresa,motivo,nombre,placas,turnoId,visitaA" && ve.body.motivo === "servicio", JSON.stringify(ve && Object.keys(ve.body)));
+  check("visitante: entrada con exactamente los campos permitidos (sin identificaciones)", Boolean(ve) && Object.keys(ve.body).filter((k) => k !== "sync").sort().join() === "empresa,motivo,nombre,placas,turnoId,visitaA" && ve.body.motivo === "servicio", JSON.stringify(ve && Object.keys(ve.body)));
 
   await ev("document.querySelector('.modal .btn-icono') && document.querySelector('.modal .btn-icono').click()");
   await espera(300);

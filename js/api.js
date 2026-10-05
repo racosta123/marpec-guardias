@@ -1,5 +1,8 @@
 // Cliente del Worker. Toda escritura pasa por aquí; el cliente nunca escribe en Firestore.
 import { config } from "./config.js";
+import { sincronizarReloj } from "./cola.js";
+
+const TIEMPO_MAX_MS = 45000; // sin respuesta: se trata como falta de conexión (el registro se guarda local y se reintenta)
 
 const MENSAJES = {
   unauthorized: "Tu sesión expiró. Vuelve a entrar.",
@@ -29,10 +32,12 @@ export function crearApi(auth) {
         body: body === undefined ? undefined : JSON.stringify(body),
         cache: "no-store",
         referrerPolicy: "no-referrer",
+        signal: AbortSignal.timeout(TIEMPO_MAX_MS),
       });
     } catch {
       throw new Error("No fue posible conectar. Revisa tu conexión.");
     }
+    sincronizarReloj(Number(res.headers.get("x-server-time"))); // desfase del reloj del celular para los registros sin conexión
     const data = await res.json().catch(() => ({}));
     if (!res.ok) throw Object.assign(new Error(data.mensaje || MENSAJES[data.error] || "No se pudo completar la acción."), { status: res.status, code: data.error });
     return data;

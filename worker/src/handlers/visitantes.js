@@ -7,6 +7,8 @@ import { CONFIG_DEFECTO } from "../asistencia.js";
 import { HttpError, commit, deleteDocument, getDocument, runQuery } from "../google.js";
 import { validarFoto } from "./marcas.js";
 import { enumerado, sitioParaGestion, soloCampos, turnoActivoDelGuardia } from "./turnoActivo.js";
+import { camposOffline, escriturasRegistro, leerTiempo, registroIdDe, siEsDuplicado } from "../offline.js";
+import { cargarConfig } from "./asistenciaSvc.js";
 
 export const MOTIVOS = ["visita", "proveedor", "paqueteria", "servicio", "otro"];
 const BODY_MAX = 230 * 1024;
@@ -23,8 +25,10 @@ export async function entradaVisitante(env, request) {
   const actor = await authenticate(env, request);
   requireRol(actor, "guardia");
   const b = await readJson(request, BODY_MAX);
-  soloCampos(b, ["turnoId", "nombre", "visitaA", "motivo", "empresa", "placas", "foto"]);
-  const { turno, sitio } = await turnoActivoDelGuardia(env, actor, vId(b.turnoId, "turnoId"));
+  soloCampos(b, ["turnoId", "nombre", "visitaA", "motivo", "empresa", "placas", "foto", "sync"]);
+  const config = await cargarConfig(env);
+  const t = await leerTiempo(env, actor, b, config);
+  const { turno, sitio } = await turnoActivoDelGuardia(env, actor, vId(b.turnoId, "turnoId"), t, config);
   const nombre = str(b.nombre, "Nombre del visitante", 2, 80);
   const visitaA = str(b.visitaA, "A quién visita", 2, 80);
   const motivo = enumerado(b.motivo, "Motivo", MOTIVOS);
@@ -39,8 +43,9 @@ export async function entradaVisitante(env, request) {
     foto = validarFoto(b.foto);
     if (!env.SELFIES) throw new HttpError(503, "almacenamiento_no_disponible", "El almacenamiento de fotos no está disponible. Intenta más tarde.");
   }
-  const ahora = Date.now(); // hora del servidor
-  const id = `${ahora.toString(36)}-${randomId(5)}`;
+  const ahora = t.ahora; // hora del servidor (o la estimada, acotada, si vino sin conexión)
+  // Con clientId el id es determinista: así la salida encolada sin conexión puede referirse a esta entrada.
+  const id = t.registroId ? `o${t.registroId.slice(0, 16)}` : `${ahora.toString(36)}-${randomId(5)}`;
   if (foto) {
     fotoKey = `visitantes/${turno.sitioId}/${id}.jpg`;
     await env.SELFIES.put(fotoKey, foto, { httpMetadata: { contentType: "image/jpeg" }, customMetadata: { visitante: id, guardiaUid: actor.uid } });
@@ -50,14 +55,17 @@ export async function entradaVisitante(env, request) {
   const base = {
     sitioId: turno.sitioId, turnoId: b.turnoId, guardiaUid: actor.uid, guardiaNombre: guardia?.nombre || "", nombre, visitaA, motivo, empresa, placas,
     fotoKey, entradaMs: ahora, expiraMs: ahora + dias * DIA, ...(turno.prueba === true || sitio.prueba === true ? { prueba: true } : {}),
+    ...camposOffline(t),
   };
   try {
     await commit(env, [
       { path: `visitantes/${id}`, data: base, mustNotExist: true, serverTimeField: "ts" }, // entrada inmutable
       { path: `visitantesVista/${id}`, data: { ...base, visitanteId: id, sitioNombre: sitio.nombre, supervisorUid: sitio.supervisorUid ?? null, dentro: true, salidaMs: null, salidaTurnoId: null }, serverTimeField: "actualizadoEn" },
+      ...escriturasRegistro(t, { tipo: "visitante_entrada", titulo: "Entrada de visitante", refPath: `visitantes/${id}`, sitioId: turno.sitioId, sitioNombre: sitio.nombre, supervisorUid: sitio.supervisorUid ?? null, guardiaUid: actor.uid, guardiaNombre: guardia?.nombre || "", prueba: base.prueba === true }),
     ]);
   } catch (e) {
     if (fotoKey) await env.SELFIES.delete(fotoKey).catch(() => {});
+    await siEsDuplicado(env, e, t);
     throw e;
   }
   return { status: 201, body: { ok: true, id, entradaMs: ahora } };
@@ -67,20 +75,28 @@ export async function salidaVisitante(env, request) {
   const actor = await authenticate(env, request);
   requireRol(actor, "guardia");
   const b = await readJson(request);
-  soloCampos(b, ["turnoId", "visitanteId"]);
-  const { turno } = await turnoActivoDelGuardia(env, actor, vId(b.turnoId, "turnoId"));
-  const id = vId(b.visitanteId, "visitanteId");
+  soloCampos(b, ["turnoId", "visitanteId", "visitanteClientId", "sync"]);
+  const config = await cargarConfig(env);
+  const t = await leerTiempo(env, actor, b, config);
+  const { turno, sitio } = await turnoActivoDelGuardia(env, actor, vId(b.turnoId, "turnoId"), t, config);
+  // El visitante se identifica por su id o, si su entrada se capturó sin conexión, por el clientId de esa entrada.
+  let id;
+  if (b.visitanteClientId !== undefined) id = `o${(await registroIdDe(actor.uid, String(b.visitanteClientId))).slice(0, 16)}`;
+  else id = vId(b.visitanteId, "visitanteId");
   const v = await getDocument(env, `visitantesVista/${id}`);
   // Solo visitantes de SU sitio (también los que entraron en el turno anterior)
   if (!v || v.sitioId !== turno.sitioId) throw new HttpError(404, "not_found", "Visitante no encontrado en este sitio.");
-  const ahora = Date.now();
+  const ahora = t.ahora;
+  if (t.sin_conexion && ahora < v.entradaMs) throw new HttpError(409, "fuera_de_turno", "La salida es anterior a la entrada del visitante.");
   try {
-    await commit(env, [{ path: `salidasVisitante/${id}`, data: { visitanteId: id, sitioId: v.sitioId, guardiaUid: actor.uid, turnoId: b.turnoId, salidaMs: ahora, ...(v.prueba === true ? { prueba: true } : {}) }, mustNotExist: true, serverTimeField: "ts" }]);
+    await commit(env, [{ path: `salidasVisitante/${id}`, data: { visitanteId: id, sitioId: v.sitioId, guardiaUid: actor.uid, turnoId: b.turnoId, salidaMs: ahora, ...(v.prueba === true ? { prueba: true } : {}), ...camposOffline(t) }, mustNotExist: true, serverTimeField: "ts" },
+      ...escriturasRegistro(t, { tipo: "visitante_salida", titulo: "Salida de visitante", refPath: `salidasVisitante/${id}`, sitioId: v.sitioId, sitioNombre: sitio.nombre, supervisorUid: sitio.supervisorUid ?? null, guardiaUid: actor.uid, guardiaNombre: actor.perfil.nombre, prueba: v.prueba === true })]);
   } catch (e) {
+    await siEsDuplicado(env, e, t);
     if (e.status === 409) throw new HttpError(409, "ya_salio", "Este visitante ya tiene salida registrada.");
     throw e;
   }
-  await commit(env, [{ path: `visitantesVista/${id}`, data: { dentro: false, salidaMs: ahora, salidaTurnoId: b.turnoId }, merge: true, mustExist: true, serverTimeField: "actualizadoEn" }]);
+  await commit(env, [{ path: `visitantesVista/${id}`, data: { dentro: false, salidaMs: ahora, salidaTurnoId: b.turnoId, ...(t.sin_conexion ? { salida_sin_conexion: true } : {}) }, merge: true, mustExist: true, serverTimeField: "actualizadoEn" }]);
   return { status: 201, body: { ok: true, salidaMs: ahora } };
 }
 

@@ -3,6 +3,7 @@
 import { fechaLocal } from "../asistencia.js";
 import { calcularRondin, generarSlots, programaEfectivo } from "../rondines.js";
 import { commit, getDocument, runQuery } from "../google.js";
+import { notificarUnaVez } from "../push.js";
 
 const MIN = 60000;
 // Comparación canónica (Firestore devuelve las llaves de los mapas ordenadas; el cálculo no).
@@ -51,6 +52,9 @@ export async function recalcularRondin(env, turnoId, slot, ctx, { ahora = Date.n
   const { calculadoMs, calculadoEn, ...prev } = previo || {};
   if (!previo || !igual(doc, prev)) {
     await commit(env, [{ path: `rondines/${rondinId}`, data: { ...doc, calculadoMs: ahora }, serverTimeField: "calculadoEn" }]);
+    // Push: rondín no iniciado o incompleto (una vez por rondín y estado; nunca por rondines viejos).
+    if (["no_iniciado", "incompleto"].includes(doc.estado) && previo?.estado !== doc.estado && ahora - slot.venceMs < 2 * 3600e3)
+      await notificarUnaVez(env, `rondin-${rondinId}-${doc.estado}`, { evento: "rondin", sitioId: t.sitioId, prueba: t.prueba === true });
   }
   return { ...doc, calculadoMs: ahora };
 }

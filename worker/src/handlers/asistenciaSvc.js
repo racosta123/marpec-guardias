@@ -2,6 +2,7 @@
 // (asistencias/{turnoId}) y lo guarda SOLO si cambió. Las marcas nunca se modifican.
 import { calcularAsistencia, configEfectiva, horaEfectiva, fechaLocal, MIN } from "../asistencia.js";
 import { commit, getDocument, runQuery } from "../google.js";
+import { notificarUnaVez } from "../push.js";
 
 const H = 3600 * 1000;
 // Un turno "releva" a otro si es del mismo sitio y empieza entre 2 h antes y 4 h después del fin del primero.
@@ -79,6 +80,7 @@ export async function recalcularTurno(env, turnoId, { ahora = Date.now(), config
     entradaDistanciaM: entrada?.distanciaM ?? null, entradaPrecisionM: entrada?.precisionM ?? null, fotoEntrada: Boolean(entrada?.fotoKey),
     salidaDistanciaM: salida?.distanciaM ?? null, salidaPrecisionM: salida?.precisionM ?? null, fotoSalida: Boolean(salida?.fotoKey),
     notasEntrega: salida?.notasEntrega ?? "",
+    entradaSinConexion: entrada?.sin_conexion === true, salidaSinConexion: salida?.sin_conexion === true,
     entradaOriginalMs: entrada?.tsMs ?? null, salidaOriginalMs: salida?.tsMs ?? null, ajustes: ajustes.length, ultimoAjusteMotivo: ult?.motivo ?? null,
     extraResueltoPor: decisionExtra && r.extraEstado !== "pendiente" ? decisionExtra.autorNombre : null,
     extraMotivo: decisionExtra && r.extraEstado !== "pendiente" ? decisionExtra.motivo : null,
@@ -88,6 +90,9 @@ export async function recalcularTurno(env, turnoId, { ahora = Date.now(), config
   if (!previo || !igual(sinVolatiles(doc), sinVolatiles(Object.fromEntries(Object.entries(previo).filter(([k]) => k !== "calculadoMs" && k !== "calculadoEn"))))) {
     await commit(env, [{ path: `asistencias/${turnoId}`, data: { ...doc, calculadoMs: ahora }, serverTimeField: "calculadoEn" }]);
   }
+  // Push al supervisor del sitio y al admin cuando el relevo no llega (una sola vez por turno; nunca por alertas viejas).
+  if (doc.relevoAlerta === true && previo?.relevoAlerta !== true && ahora - turno.finMs < 6 * H)
+    await notificarUnaVez(env, `relevo-${turnoId}`, { evento: "relevo", sitioId: turno.sitioId, prueba: turno.prueba === true });
   return { ...doc, calculadoMs: ahora };
 }
 
