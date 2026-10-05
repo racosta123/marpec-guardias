@@ -271,11 +271,26 @@ try {
   await ev("window.__llamadas.length = 0");
   await clic("/ATENDER/", "#alertas-panico button");
   await conTexto(".modal", /Atender alerta de pánico/i);
+  check("atender: el formulario de confirmación queda POR ENCIMA del aviso (el botón se puede pulsar de verdad)", (await ev(`(() => { const b = document.querySelector('.modal form button[type=submit]'); const r = b.getBoundingClientRect(); const e = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2); return !!e && !!e.closest('.modal'); })()`)) === true);
   await ev("document.querySelector('.modal textarea').value = 'Voy en camino con la patrulla.'; document.querySelector('.modal form').requestSubmit()");
   await espera(900);
   const at = await llamadas("/panico/atender");
   check("atender: registra quién (la sesión) con una nota; el servidor guarda hora y autor", at.length === 1 && at[0].body.id === "pz" && at[0].body.nota === "Voy en camino con la patrulla.");
   check("al atenderse el aviso desaparece y el sonido se detiene", (await ev("document.getElementById('alertas-panico').hidden")) === true);
+  // ---- varias alertas a la vez: cada ATENDER cierra solo la suya; la sirena calla al atender la última ----
+  await ev("window.__panico({ id: 'm1', tsMs: Date.now() - 2000 }); window.__panico({ id: 'm2', tsMs: Date.now() - 1000 }); window.__panico({ id: 'm3', tsMs: Date.now() })");
+  await espera(600);
+  const cuenta = () => ev("document.querySelectorAll('#alertas-panico .alerta-panico').length");
+  check("varias alertas: aparecen las 3 a la vez", (await cuenta()) === 3);
+  for (const quedan of [2, 1, 0]) {
+    await clic("/ATENDER/", "#alertas-panico button");
+    await conTexto(".modal", /Atender alerta de pánico/i);
+    check("varias alertas: el botón de confirmar es pulsable (por encima del aviso)", (await ev(`(() => { const b = document.querySelector(".modal form button[type=submit]"); const r = b.getBoundingClientRect(); const e = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2); return !!e && !!e.closest(".modal"); })()`)) === true);
+    await ev("document.querySelector('.modal form').requestSubmit()");
+    await espera(800);
+    check(`varias alertas: al atender una quedan ${quedan}`, (await cuenta()) === quedan && (await ev("!document.querySelector('.modal')")));
+  }
+  check("varias alertas: al atender la última el aviso se oculta y la sirena se calla", (await ev("document.getElementById('alertas-panico').hidden")) === true && !(await ev("document.title")).includes("PÁNICO"));
   // ---- bandeja sin conexión ----
   await ev(`(() => { const now = Date.now(); window.__store.offlineVista = {
     o1: { registroId: "o1", tipo: "entrada", titulo: "Entrada al turno", sitioId: "siteA", sitioNombre: "Plaza Norte", supervisorUid: "sup1", guardiaNombre: "Gael Guardia", tsMs: now - 3 * 3600e3, recibidoMs: now - 3600e3, horaDispositivoMs: now - 3.1 * 3600e3, estadoRevision: "pendiente" },

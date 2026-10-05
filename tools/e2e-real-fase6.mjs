@@ -54,6 +54,22 @@ const jpeg = (n = 4000, r = 7) => { const b = Buffer.alloc(n, r); b.set([0xff, 0
 const FOTO = jpeg().toString("base64");
 const rej = (n, r, status, error) => check(n, r.status === status && (!error || r.body?.error === error), `${r.status} ${r.body?.error || ""}`);
 
+// Al terminar (o si el script se cae) se ATIENDEN las alertas de pánico de sus propios guardias de prueba:
+// no deben quedar alarmas sonando en el panel del admin.
+async function limpiarAlarmas() {
+  if (!A || !g.A) return;
+  let n = 0;
+  for (const gu of [g.A, g.B]) {
+    const r = await (await fetch(`${FS}:runQuery`, { method: "POST", headers: { "content-type": "application/json", authorization: `Bearer ${A}` }, body: JSON.stringify({ structuredQuery: { from: [{ collectionId: "panicoVista" }], where: { compositeFilter: { op: "AND", filters: [{ fieldFilter: { field: { fieldPath: "guardiaUid" }, op: "EQUAL", value: { stringValue: gu } } }, { fieldFilter: { field: { fieldPath: "estado" }, op: "EQUAL", value: { stringValue: "activa" } } }] } }, limit: 50 } }) })).json().catch(() => []);
+    for (const d of Array.isArray(r) ? r.filter((x) => x.document) : []) {
+      const a = await api("/panico/atender", { token: A, body: { id: d.document.name.split("/").pop(), nota: "limpieza de pruebas e2e" } });
+      if (a.status === 200) n++;
+    }
+  }
+  console.log(`   alertas de pánico de prueba atendidas al terminar: ${n}`);
+}
+process.on("uncaughtException", async (e) => { console.error(e); await limpiarAlarmas().catch(() => {}); process.exit(1); });
+
 // ---------------------------------------------------------------- preparación
 const ac = adminCustomToken();
 await espera(10000);
@@ -69,7 +85,7 @@ const pins = { A: String(randomInt(1000, 9999)), B: String(randomInt(1000, 9999)
 const nums = Object.fromEntries(Object.keys(pins).map((k) => [k, `F6${sx}${k}`.toUpperCase()]));
 const pass = randomBytes(18).toString("base64url") + "aA1";
 const mk = (b) => api("/admin/usuarios", { token: A, body: { ...b, prueba: true } });
-const g = {};
+var g = {}; // (var: la limpieza final también corre si el script se cae antes de crear los guardias)
 for (const k of Object.keys(pins)) g[k] = (await mk({ rol: "guardia", nombre: `PRUEBA F6 Guardia ${k}`, numeroEmpleado: nums[k], pin: pins[k] })).body.uid;
 const s1 = (await mk({ rol: "supervisor", nombre: "PRUEBA F6 Sup 1", email: `prueba-f6-1-${sx}@prueba.invalid`, password: pass })).body.uid;
 const s2 = (await mk({ rol: "supervisor", nombre: "PRUEBA F6 Sup 2", email: `prueba-f6-2-${sx}@prueba.invalid`, password: pass })).body.uid;
@@ -242,5 +258,6 @@ const marcados = [];
 for (const [c, id] of colecciones) { if (id) marcados.push([c, (await op(`${c}/${id}`))?.prueba === true]); }
 check("todo lo creado quedó marcado prueba=true", marcados.every(([, x]) => x), marcados.filter(([, x]) => !x).map(([c]) => c).join() || "ok");
 
+await limpiarAlarmas();
 console.log(fallos ? `\n${fallos} PRUEBA(S) FALLARON` : "\nTODAS LAS PRUEBAS REALES DE LA FASE 6 PASARON");
 process.exit(fallos ? 1 : 0);

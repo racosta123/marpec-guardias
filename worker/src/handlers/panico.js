@@ -82,6 +82,11 @@ export async function crearPanico(env, request) {
   return { status: 201, body: { ok: true, id, tsMs: t.ahora, sin_conexion: t.sin_conexion, avisados: push.enviados, sinSupervisor: !sitio?.supervisorUid } };
 }
 
+// Marca la alerta como atendida en la vista que escuchan los paneles (cierra la alerta y calla la sirena).
+function cerrarVista(env, id, a) {
+  return commit(env, [{ path: `panicoVista/${id}`, data: { estado: "atendida", atendidaPorUid: a.uid, atendidaPorNombre: a.nombre, atendidaPorRol: a.rol, atendidaMs: a.ms, notaAtencion: a.nota }, merge: true, mustExist: true, serverTimeField: "actualizadoEn" }]);
+}
+
 // Atiende la alerta: queda registrado quién y cuándo (la primera atención gana; no se sobrescribe).
 export async function atenderPanico(env, request) {
   const actor = await authenticate(env, request);
@@ -102,10 +107,14 @@ export async function atenderPanico(env, request) {
       auditoria(actor, "panico.atendida", id, { nota }, v),
     ]);
   } catch (e) {
-    if (e.status === 409) throw new HttpError(409, "ya_atendida", "Otra persona la atendió hace un momento.");
-    throw e;
+    if (e.status !== 409) throw e;
+    // La atención ya estaba registrada (la primera gana). Si la vista quedó "activa" porque un intento anterior se cortó
+    // a medias, se repara con los datos de ESA atención para que la alerta no quede sonando para siempre.
+    const prev = await getDocument(env, `atencionesPanico/${id}`);
+    if (prev) await cerrarVista(env, id, { uid: prev.atendidaPorUid, nombre: prev.atendidaPorNombre, rol: prev.atendidaPorRol, ms: prev.atendidaMs, nota: prev.nota ?? null });
+    throw new HttpError(409, "ya_atendida", prev?.atendidaPorNombre ? `Ya la atendió ${prev.atendidaPorNombre}.` : "Otra persona la atendió hace un momento.");
   }
-  await commit(env, [{ path: `panicoVista/${id}`, data: { estado: "atendida", atendidaPorUid: actor.uid, atendidaPorNombre: actor.perfil.nombre, atendidaPorRol: actor.rol, atendidaMs: ahora, notaAtencion: nota }, merge: true, mustExist: true, serverTimeField: "actualizadoEn" }]);
+  await cerrarVista(env, id, { uid: actor.uid, nombre: actor.perfil.nombre, rol: actor.rol, ms: ahora, nota });
   return { status: 200, body: { ok: true, atendidaMs: ahora } };
 }
 

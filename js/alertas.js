@@ -47,8 +47,12 @@ export function iniciarAlertasPanico({ db, api, user }) {
   const cont = h("div", { id: "alertas-panico", class: "alertas-panico", role: "alert", "aria-live": "assertive" });
   document.body.append(cont);
   let avisoError = false;
+  let ultimas = [];
+  const atendidas = new Set(); // atendidas por esta sesión: se ocultan y callan al instante, sin esperar al listener
 
-  const pintar = (alertas) => {
+  const pintar = (todas) => {
+    ultimas = todas;
+    const alertas = todas.filter((x) => !atendidas.has(x.id));
     limpiar(cont);
     cont.hidden = !alertas.length;
     sonar(alertas.length > 0);
@@ -69,11 +73,12 @@ export function iniciarAlertasPanico({ db, api, user }) {
     const f = h("form", { class: "form" }, h("p", {}, `Al atenderla quedará registrado que fuiste tú, con la hora. Guardia: ${a.guardiaNombre}.`), nota,
       h("button", { class: "btn primario", type: "submit" }, "Confirmar: atiendo esta alerta"));
     const m = modal("Atender alerta de pánico", f);
+    document.body.lastElementChild.classList.add("sobre-alerta");
     f.addEventListener("submit", async (e) => {
       e.preventDefault();
       f.querySelector("button").disabled = true;
-      try { await api("/panico/atender", { body: { id: a.id, nota: nota.value } }); toast("Alerta atendida. Quedó registrado."); m.cerrar(); }
-      catch (err) { toast(err.message, "error"); if (err.code === "ya_atendida") m.cerrar(); else f.querySelector("button").disabled = false; }
+      try { await api("/panico/atender", { body: { id: a.id, nota: nota.value } }); toast("Alerta atendida. Quedó registrado."); m.cerrar(); atendidas.add(a.id); pintar(ultimas); }
+      catch (err) { toast(err.message, "error"); if (err.code === "ya_atendida") { m.cerrar(); atendidas.add(a.id); pintar(ultimas); } else f.querySelector("button").disabled = false; }
     });
   }
 

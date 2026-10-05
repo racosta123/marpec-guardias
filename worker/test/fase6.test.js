@@ -354,6 +354,11 @@ test("pánico: exige 3 s, llega al supervisor del sitio y al admin (no a otros),
   assert.deepEqual([pv2.estado, pv2.atendidaPorNombre, pv2.atendidaPorRol, pv2.notaAtencion], ["atendida", "Sara Sup", "supervisor", "Voy en camino con la patrulla."]);
   assert.ok(pv2.atendidaMs >= pv.tsMs);
   assert.equal(get(`atencionesPanico/${r.body.id}`).atendidaPorUid, m.s1);
+  // reparación: si un intento se cortó tras guardar la atención y la vista quedó activa, el reintento la cierra
+  doc(`panicoVista/${r.body.id}`).estado = { stringValue: "activa" }; // simula el corte: atención guardada, vista sin cerrar
+  const rep2 = await m.AD("POST", "/panico/atender", { id: r.body.id });
+  assert.equal(rep2.status, 409);
+  assert.equal(get(`panicoVista/${r.body.id}`).estado, "atendida", "el reintento cierra la alerta que quedó activa");
   const otra = await m.AD("POST", "/panico/atender", { id: r.body.id });
   assert.equal(otra.status, 409); assert.equal(otra.body.error, "ya_atendida");
   assert.equal(get(`panicoVista/${r.body.id}`).atendidaPorNombre, "Sara Sup", "no se sobrescribe");
