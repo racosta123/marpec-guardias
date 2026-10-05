@@ -178,11 +178,13 @@ const aj = (token, body) => api("/rondines/ajuste", { token, body: { rondinId: `
 await rej("ajuste: el guardia no se ajusta", await aj(TK.C, {}), 403);
 await rej("ajuste: supervisor de otro sitio no puede", await aj(S2T, {}), 403);
 await rej("ajuste: motivo obligatorio", await aj(S1T, { motivo: "ok" }), 400);
-const escOrig = JSON.stringify((await fsGet(`escaneos/${tC}_0_${P.c1}`, A)).doc);
+const crudo = (p) => fetch(`${FS}/${p}`, { headers: { authorization: `Bearer ${A}` } }).then(async (r) => (r.status === 200 ? r.json() : null));
+const escOrig = await crudo(`escaneos/${tC}_0_${P.c1}`);
 await rej("ajuste: el supervisor del sitio marca el punto con motivo", await aj(S1T, {}), 201);
 const rC2 = (await fsGet(`rondines/${tC}_0`, S1T)).doc;
 check("ajuste: el rondín queda completo y el punto lleva ajuste, nombre y motivo", rC2 && rC2.estado === "completo" && rC2.detalle.find((d) => d.puntoId === P.c2).origen === "ajuste" && rC2.detalle.find((d) => d.puntoId === P.c2).ajustePor === "PRUEBA F4 Sup 1");
-check("ajuste: el escaneo original NO cambió", JSON.stringify((await fsGet(`escaneos/${tC}_0_${P.c1}`, A)).doc) === escOrig);
+const escDespues = await crudo(`escaneos/${tC}_0_${P.c1}`);
+check("ajuste: el escaneo original NO cambió (mismo contenido y updateTime = createTime)", Boolean(escOrig && escDespues) && JSON.stringify(escDespues.fields) === JSON.stringify(escOrig.fields) && escDespues.updateTime === escDespues.createTime, escDespues ? `${escDespues.createTime === escDespues.updateTime}` : "sin lectura");
 await rej("justificar el rondín de D (con motivo)", await api("/rondines/ajuste", { token: S1T, body: { rondinId: `${tD}_0`, tipo: "justificar_rondin", motivo: "Simulacro de evacuación." } }), 201);
 check("D queda justificado y deja de contar", (await fsGet(`rondines/${tD}_0`, S1T)).doc.estado === "justificado");
 
