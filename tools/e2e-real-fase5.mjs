@@ -142,7 +142,7 @@ await rej("seguimiento: abierta → en atención", await seg(S1T, { tipo: "estad
 await rej("seguimiento: no se puede volver a «abierta»", await seg(S1T, { tipo: "estado", estadoNuevo: "abierta" }), 409);
 await rej("seguimiento: en atención → cerrada (admin)", await seg(A, { tipo: "estado", estadoNuevo: "cerrada", texto: "Resuelto." }), 201);
 const incDespues = await crudo(`incidencias/${incId}`, A);
-check("el registro ORIGINAL no cambió (updateTime = createTime y mismo contenido)", JSON.stringify(incDespues.raw.fields) === JSON.stringify(incDoc.raw.fields) && incDespues.raw.updateTime === incDespues.raw.createTime);
+check("el registro ORIGINAL no cambió (updateTime = createTime y mismo contenido)", JSON.stringify(plano(incDespues.raw), Object.keys(plano(incDoc.raw)).sort()) === JSON.stringify(plano(incDoc.raw), Object.keys(plano(incDoc.raw)).sort()) && incDespues.raw.updateTime === incDespues.raw.createTime);
 const resFinal = (await fsGet(`incidenciasResumen/${incId}`, S1T)).doc;
 check("resumen: estado cerrada y 3 registros de seguimiento con nombre y hora", resFinal.estado === "cerrada" && resFinal.seguimientos.length === 3 && resFinal.seguimientos.every((s) => s.autorNombre && s.tsMs), resFinal.seguimientos.map((s) => s.autorNombre).join(","));
 
