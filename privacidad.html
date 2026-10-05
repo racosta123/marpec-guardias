@@ -24,17 +24,18 @@
     <ul>
       <li><strong>Identificación laboral:</strong> nombre, número de empleado y rol (guardia, supervisor o administrador).</li>
       <li><strong>Credenciales de acceso:</strong> el PIN del guardia se almacena cifrado de forma irreversible (hash con sal); nunca en texto legible.</li>
-      <li><strong>Ubicación (GPS):</strong> se usará <strong>únicamente durante el turno</strong>, para verificar que el guardia se encuentra dentro del perímetro del sitio asignado. No se rastrea fuera del turno.</li>
-      <li><strong>Fotografías:</strong> se usarán para verificar asistencia (inicio y relevo de turno). Se guardan en almacenamiento privado, con acceso restringido a personal autorizado.</li>
-      <li><strong>Registros de actividad:</strong> hora de entrada y salida, rondines, incidencias y visitantes, con hora del servidor.</li>
+      <li><strong>Ubicación (GPS):</strong> se solicita <strong>únicamente en el momento de marcar entrada o salida</strong>, para verificar que el guardia se encuentra dentro del perímetro del sitio asignado. Se guardan la latitud, la longitud y la precisión de esa marca. <strong>No se rastrea tu ubicación</strong> en segundo plano ni fuera de esos momentos.</li>
+      <li><strong>Fotografías (selfie):</strong> al marcar entrada y salida se toma una selfie con la cámara frontal en vivo (no se pueden subir fotos de la galería) para verificar asistencia. Se guardan en <strong>Cloudflare R2</strong>, un almacenamiento privado sin acceso público; solo las puede ver el supervisor del sitio y la administración, mediante la aplicación y con sesión iniciada.</li>
+      <li><strong>Registros de asistencia:</strong> hora de entrada y salida (la hora la registra el servidor), notas de entrega de turno, retardos, faltas y horas extra calculadas a partir de esas marcas. Las marcas no se modifican; las correcciones se registran como ajustes con motivo y nombre de quien los hizo.</li>
+      <li><strong>Más adelante:</strong> rondines, incidencias y visitantes, con hora del servidor.</li>
     </ul>
-    <p>En la versión actual de la aplicación solo se utiliza el acceso (número de empleado, PIN y rol). La ubicación y las fotografías se habilitarán en fases posteriores y este aviso se actualizará antes de hacerlo.</p>
+    <p>La aplicación utiliza ahora el acceso (número de empleado, PIN y rol) y el registro de asistencia descrito. Los permisos de <strong>cámara</strong> y <strong>ubicación</strong> se piden solo al marcar, con una explicación breve; puedes revocarlos en los ajustes del navegador (sin ellos no es posible marcar).</p>
 
     <h2>Para qué se usan</h2>
     <p>Control de asistencia y de cumplimiento de servicios de seguridad contratados, seguridad de las instalaciones y atención de incidencias. No se venden ni se ceden a terceros con fines comerciales.</p>
 
     <h2>Quién puede ver los datos</h2>
-    <p>Cada guardia puede consultar su propia información. Supervisores y administradores de MARPEC pueden consultar los registros necesarios para su función.</p>
+    <p>Cada guardia puede consultar su propia información. Supervisores y administradores de MARPEC pueden consultar los registros necesarios para su función. El guardia que te releva puede leer las notas de entrega que dejes al cerrar tu turno.</p>
 
     <h2>Conservación</h2>
     <p>Los registros se conservan durante el tiempo necesario para las finalidades anteriores y las obligaciones legales aplicables: <em>[plazo por definir por MARPEC]</em>.</p>

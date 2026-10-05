@@ -94,6 +94,7 @@ export function enc(v) {
   if (Number.isInteger(v)) return { integerValue: String(v) };
   if (typeof v === "number" && Number.isFinite(v)) return { doubleValue: v };
   if (Array.isArray(v)) return { arrayValue: { values: v.map(enc) } };
+  if (typeof v === "object") return { mapValue: { fields: Object.fromEntries(Object.entries(v).filter(([, x]) => x !== undefined).map(([k, x]) => [k, enc(x)])) } };
   throw new Error("tipo no soportado");
 }
 export function dec(f) {
@@ -104,6 +105,7 @@ export function dec(f) {
   if ("timestampValue" in f) return f.timestampValue;
   if ("nullValue" in f) return null;
   if ("arrayValue" in f) return (f.arrayValue.values || []).map(dec);
+  if ("mapValue" in f) return Object.fromEntries(Object.entries(f.mapValue.fields || {}).map(([k, x]) => [k, dec(x)]));
   return undefined;
 }
 const toFields = (o) => Object.fromEntries(Object.entries(o).map(([k, v]) => [k, enc(v)]));

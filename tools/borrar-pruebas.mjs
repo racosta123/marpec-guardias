@@ -22,12 +22,22 @@ async function consulta(coleccion) {
 }
 
 const usuarios = await consulta("usuarios");
-const credenciales = [...(await consulta("credenciales")), ...(await consulta("sitios")), ...(await consulta("turnos"))];
+const marcas = await consulta("marcas");
+const credenciales = [...(await consulta("credenciales")), ...(await consulta("sitios")), ...(await consulta("turnos")), ...marcas,
+  ...(await consulta("asistencias")), ...(await consulta("ajustesAsistencia")), ...(await consulta("autorizaciones"))];
 const uids = usuarios.map((d) => d.name.split("/").pop());
-console.log(`Usuarios de prueba: ${usuarios.length}, credenciales/sitios/turnos de prueba: ${credenciales.length}`);
+console.log(`Usuarios de prueba: ${usuarios.length}, credenciales/sitios/turnos/marcas/asistencias/ajustes/autorizaciones de prueba: ${credenciales.length}`);
 for (const d of usuarios) console.log(" -", d.fields.rol?.stringValue, d.fields.nombre?.stringValue);
 if (!aplicar) { console.log("\n(simulación) Ejecuta con --aplicar para borrar."); process.exit(0); }
 
+// Selfies de prueba en R2 (bucket privado)
+let fotos = 0;
+for (const m of marcas) {
+  const k = m.fields.fotoKey?.stringValue;
+  if (!k) continue;
+  try { execSync(`wrangler r2 object delete marpec-guardias-selfies/${k} --remote`, { cwd: "worker", stdio: "pipe" }); fotos++; } catch { console.log(`  no se pudo borrar la foto ${k}`); }
+}
+console.log(`Selfies de prueba borradas de R2: ${fotos}`);
 for (const d of [...usuarios, ...credenciales]) await fetch(`https://firestore.googleapis.com/v1/${d.name}`, { method: "DELETE", headers: H });
 let authBorrados = 0;
 for (const uid of uids) {

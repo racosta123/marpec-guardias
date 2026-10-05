@@ -42,7 +42,20 @@ export const store = {
 };
 window.__store = store;
 // Próximo turno del guardia de prueba (en 2 h)
-store.turnos.t5 = { sitioId: "siteA", sitioNombre: "Plaza Norte", supervisorUid: "sup1", guardiaUid: "g-G001", inicioMs: ahora + 2 * 3600e3, finMs: ahora + 14 * 3600e3, plantilla: "diurno", estado: "programado" };
+store.turnos.t5 = { sitioId: "siteA", sitioNombre: "Plaza Norte", supervisorUid: "sup1", guardiaUid: "g-G001", inicioMs: ahora + 20 * 60e3, finMs: ahora + 12.33 * 3600e3, plantilla: "diurno", estado: "programado" };
+// Asistencias simuladas (las calcula el Worker en producción)
+const dia = (ms) => new Date(ms - 7 * 3600e3).toISOString().slice(0, 10);
+store.asistencias = {
+  t1: { turnoId: "t1", sitioId: "siteA", sitioNombre: "Plaza Norte", supervisorUid: "sup1", guardiaUid: "g-G001", guardiaNombre: "Gael Guardia", inicioMs: store.turnos.t1.inicioMs, finMs: store.turnos.t1.finMs, fecha: dia(store.turnos.t1.inicioMs),
+    estado: "cumplido", entradaMs: store.turnos.t1.inicioMs + 15 * 60e3, salidaMs: store.turnos.t1.finMs + 50 * 60e3, retardo: true, retardoMin: 15, falta: false, minutosExtra: 50, extraEstado: "pendiente", extraEnCurso: false,
+    fotoEntrada: true, fotoSalida: true, entradaDistanciaM: 12, entradaPrecisionM: 9, notasEntrega: "Portón 2 con falla.", ajustes: 0, relevoAlerta: false },
+  t4: { turnoId: "t4", sitioId: "siteB", sitioNombre: "Bodega Sur", supervisorUid: "sup2", guardiaUid: "g-G002", guardiaNombre: "Gema Guardia", inicioMs: store.turnos.t4.inicioMs, finMs: store.turnos.t4.finMs, fecha: dia(store.turnos.t4.inicioMs),
+    estado: "falta", entradaMs: null, salidaMs: null, retardo: false, falta: true, motivoFalta: "sin_entrada", minutosExtra: 0, extraEstado: "ninguno", relevoAlerta: false, ajustes: 0 },
+  t5: { turnoId: "t5", sitioId: "siteA", sitioNombre: "Plaza Norte", supervisorUid: "sup1", guardiaUid: "g-G001", guardiaNombre: "Gael Guardia", inicioMs: store.turnos.t5.inicioMs, finMs: store.turnos.t5.finMs, fecha: dia(store.turnos.t5.inicioMs),
+    estado: "por_marcar", entradaMs: null, salidaMs: null, retardo: false, falta: false, minutosExtra: 0, extraEstado: "ninguno", relevoAlerta: false, ajustes: 0, ventanaEntradaDesdeMs: store.turnos.t5.inicioMs - 30 * 60e3 },
+  t3: { turnoId: "t3", sitioId: "siteA", sitioNombre: "Plaza Norte", supervisorUid: "sup1", guardiaUid: "g-G001", guardiaNombre: "Gael Guardia", inicioMs: store.turnos.t3.inicioMs, finMs: store.turnos.t3.finMs, fecha: dia(store.turnos.t3.inicioMs),
+    estado: "relevo_no_llego", entradaMs: store.turnos.t3.inicioMs, salidaMs: null, retardo: false, falta: false, minutosExtra: 45, extraEstado: "pendiente", extraEnCurso: true, relevoAlerta: true, relevoRequerido: true, relevoLlegado: false, fotoEntrada: true, ajustes: 0 },
+};
 
 // ---- API mínima compatible con lo que importan las vistas ----
 export const initializeApp = () => ({});

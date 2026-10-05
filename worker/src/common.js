@@ -15,9 +15,9 @@ export const TZ_OFFSET_MS = -7 * 3600 * 1000;
 
 export const bad = (detalle) => new HttpError(400, "bad_request", detalle);
 
-export async function readJson(request) {
+export async function readJson(request, max = 8192) {
   const text = await request.text();
-  if (text.length > 8192) throw new HttpError(413, "too_large");
+  if (text.length > max) throw new HttpError(413, "too_large");
   try {
     const v = JSON.parse(text);
     if (v === null || typeof v !== "object" || Array.isArray(v)) throw 0;

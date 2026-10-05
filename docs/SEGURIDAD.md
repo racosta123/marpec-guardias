@@ -57,3 +57,32 @@
 2. Los turnos denormalizan `sitioNombre`; si se renombra un sitio, los turnos ya creados conservan el nombre anterior (el guardia ve el nombre vigente en el sitio y las consignas).
 3. El supervisor puede ver los nombres de todos los guardias activos (necesario para asignar turnos).
 4. La baja de un guardia que nunca inició sesión no tiene cuenta de Auth que revocar; queda cubierto por `credenciales.activo=false` y por el perfil inactivo.
+
+## Fase 3 — Entrada, salida, relevo y asistencia
+
+**Verificaciones de una marca (todas en el Worker, el cliente solo guía):**
+1. *Identidad y turno:* solo un `guardia` con un turno **propio**, programado y vigente. Turno ajeno o inexistente → misma respuesta 403 (no revela existencia). Admin y supervisor no pueden marcar.
+2. *Ventana:* entrada desde `ventanaEntradaMin` antes del inicio (configurable, 30 por defecto) y antes del fin del turno. Una sola entrada y una sola salida por turno (`marcas/{turno}_{tipo}` con precondición «no existe»).
+3. *GPS:* dentro del radio del sitio (haversine en el servidor) y precisión reportada ≤ radio. Se guardan lat, lng, precisión y distancia.
+4. *QR:* firma HMAC válida, versión vigente (regenerar invalida el impreso) y del **sitio del turno**.
+5. *Selfie:* JPEG real (cabecera FFD8FF y cierre FFD9), 1–150 KB. El cliente la toma de un cuadro de la cámara frontal **en vivo** (`getUserMedia`, sin selector de archivos) y la comprime a ≈100 KB.
+6. *Hora:* siempre la del servidor (`tsMs` + marca de tiempo de Firestore); la del dispositivo se guarda solo como dato informativo con su desfase.
+7. *Salida:* exige entrada previa; si hay un turno que releva en el mismo sitio y aún no marcó entrada, se rechaza (`relevo_pendiente`) salvo **autorización del supervisor** (documento inmutable con nombre y motivo).
+
+**Selfies (Cloudflare R2):** bucket privado, sin dominio público ni URL pública; solo el Worker lo lee/escribe. `GET /selfies?marca=…` exige token válido y rol `admin` o el supervisor **actual** del sitio (si el sitio cambia de supervisor, el acceso lo sigue). El guardia no ve ni su propia foto. Respuesta `private, no-store`, `nosniff`. Una marca sin foto no existe (si falla el guardado de la marca se borra la foto huérfana).
+
+**Inmutabilidad:** `marcas`, `ajustesAsistencia` y `autorizaciones` solo se crean (reglas niegan toda escritura de cliente y el Worker no actualiza ni borra). Una corrección es un **ajuste** con motivo y autor; la marca original nunca cambia. `asistencias` es un resultado **recalculable** (se sobrescribe), no una marca.
+
+**Cálculo en el servidor:** retardo (> tolerancia, ≤ límite), falta (sin entrada o entrada pasado el límite), horas extra (salida − fin; en curso mientras el saliente sigue sin cerrar), alerta de relevo (fin + tolerancia sin entrada del relevo). Horas extra quedan **pendientes** hasta que un supervisor del sitio/admin las autorice o rechace con motivo; una decisión sobre minutos que luego cambian (por un ajuste) vuelve a pendiente. Límites legales de horas extra dobles por semana **configurables por año** (`limitesExtraPorAnio`; por defecto 2026: 9 h, 2027: 12 h). Un cron del Worker recalcula cada 5 min los turnos recientes.
+
+**Lecturas (reglas):** guardia → sus `marcas` y `asistencias`; supervisor → `asistencias`, `ajustesAsistencia` y `autorizaciones` de sus sitios (nunca `marcas`, que traen GPS y ruta de la foto); admin → todo. La baja de una persona corta estas lecturas al instante.
+
+**Permisos del navegador:** ubicación y cámara se piden solo al marcar, con explicación previa; no hay rastreo en segundo plano. Sin conexión no se marca (mensaje claro); el modo offline es de la Fase 6.
+
+### Riesgos pendientes de la Fase 3
+1. **«Cámara en vivo» no es demostrable por el servidor.** Un cliente manipulado puede enviar cualquier JPEG válido. Se mitiga con QR firmado + GPS en servidor + selfie revisable por el supervisor, y registrando el desfase del reloj del dispositivo. Verificación biométrica/liveness queda fuera de alcance.
+2. **GPS falsificable** en dispositivos con ubicación simulada; el servidor solo ve coordenadas. La precisión reportada y la revisión de selfies reducen el riesgo.
+3. **Relevo:** «sucesor» se infiere por el mismo sitio y un inicio entre 2 h antes y 4 h después del fin del turno. Turnos con huecos mayores no exigen relevo.
+4. **Retención de selfies:** no hay borrado automático; la política de conservación debe definirla MARPEC (aviso de privacidad en borrador).
+5. **Costos/cuotas:** el cron (cada 5 min) y las lecturas de `get()` en reglas consumen cuota gratuita de Firestore; vigilar al crecer el número de turnos simultáneos.
+6. **jsQR 1.4.0** (Apache-2.0, sin dependencias, sin acceso a red) está vendorizada como lector de respaldo; su último release es de 2020. `npm audit`: 0 vulnerabilidades. En navegadores con `BarcodeDetector` no se usa.

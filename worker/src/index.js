@@ -14,6 +14,9 @@ import {
 import { actualizarSitio, crearSitio, obtenerQr, regenerarQr, verificarQr } from "./handlers/sitios.js";
 import { asignarLote, asignarTurno, cancelarTurno } from "./handlers/turnos.js";
 import { guardarConfig } from "./handlers/empresa.js";
+import { marcarEntrada, marcarSalida, notasRelevo, verSelfie } from "./handlers/marcas.js";
+import { autorizarCierre, crearAjuste, recalcular, reporte, resolverExtra } from "./handlers/asistenciaAdmin.js";
+import { recalcularVentana } from "./handlers/asistenciaSvc.js";
 
 export { RateLimiter };
 
@@ -186,9 +189,25 @@ const ROUTES = {
   "POST /turnos/cancelar": cancelarTurno,
   // Empresa (admin)
   "POST /admin/config": guardarConfig,
+  // Fase 3: marcas, relevo y asistencia
+  "POST /marcas/entrada": marcarEntrada,
+  "POST /marcas/salida": marcarSalida,
+  "GET /relevo/notas": notasRelevo,
+  "GET /selfies": verSelfie,
+  "POST /relevo/autorizar-cierre": autorizarCierre,
+  "POST /ajustes": crearAjuste,
+  "POST /extras/resolver": resolverExtra,
+  "POST /asistencia/recalcular": recalcular,
+  "GET /reportes/asistencia": reporte,
 };
 
 export default {
+  // Cron: refresca asistencia de turnos recientes (alertas de relevo y extras en curso).
+  async scheduled(_event, env, ctx) {
+    const ahora = Date.now();
+    ctx.waitUntil(recalcularVentana(env, ahora - 40 * 3600e3, ahora + 3600e3, { omitirCerrados: true, ahora }).catch((e) => console.error("cron", e?.message)));
+  },
+
   async fetch(request, env) {
     const url = new URL(request.url);
     const origin = request.headers.get("origin");
@@ -206,6 +225,9 @@ export default {
 
     try {
       const r = await handler(env, request);
+      if (r.binary) {
+        return new Response(r.binary.body, { status: r.status, headers: { ...SECURITY_HEADERS, ...corsHeaders(env, request.headers.get("origin")), "content-type": r.binary.contentType, "cache-control": "private, no-store" } });
+      }
       return respond(env, request, r.status, r.body);
     } catch (e) {
       if (e instanceof HttpError) {

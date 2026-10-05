@@ -24,6 +24,13 @@ writeFileSync(
   `qrcode-generator (MIT) — https://github.com/kazuhikoarase/qrcode-generator\n\n${cab}\n`,
 );
 
+await build({
+  entryPoints: ["tools/jsqr-entry.js"],
+  outfile: "js/vendor/jsqr.js",
+  bundle: true, minify: true, format: "esm", platform: "browser", target: "es2020", legalComments: "none",
+});
+copyFileSync("node_modules/jsqr/LICENSE", "js/vendor/LICENSE-jsqr-Apache-2.0.txt");
+
 mkdirSync("fonts", { recursive: true });
 const f = "node_modules/@fontsource";
 for (const w of [400, 500, 600, 700])

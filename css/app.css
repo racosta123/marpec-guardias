@@ -213,3 +213,40 @@ hr { border: 0; border-top: 1px solid var(--line); margin: 14px 0; }
 .instalar-ios p { margin: 0; flex: 1; }
 .instalar-barra .instalar-ios { max-width: 520px; margin: 0 auto; }
 .icono-compartir { display: inline-block; border: 1.5px solid var(--navy); border-radius: 4px; padding: 0 4px; line-height: 1.2; font-weight: 700; }
+
+/* ---- Fase 3: marcar entrada/salida, asistencia, reportes ---- */
+.btn.grande { min-height: 78px; font-size: 1.9rem; margin-top: 16px; box-shadow: 0 6px 16px rgba(232,163,61,.45); }
+.btn.grande.salida { background: var(--navy); color: #fff; box-shadow: 0 6px 16px rgba(27,42,85,.35); }
+.ayuda-relevo { background: #fbeae6; border-left: 4px solid var(--panic); padding: 8px 12px; border-radius: 6px; font-size: .95rem; margin: 10px 0 0; }
+.notas-relevo h4 { margin: 0 0 6px; color: var(--navy); text-transform: uppercase; }
+.notas-texto { white-space: pre-wrap; margin: 0; }
+
+/* Asistente de marcado (pantalla completa) */
+.marcar-fondo { position: fixed; inset: 0; z-index: 70; background: var(--bg); overflow-y: auto; display: flex; justify-content: center; }
+.marcar-caja { width: 100%; max-width: 520px; padding: 14px 16px 28px; }
+.marcar-cab { display: grid; grid-template-columns: 1fr auto; align-items: center; margin-bottom: 8px; }
+.marcar-cab h2 { grid-column: 1 / -1; color: var(--navy); font-size: 1.8rem; text-transform: uppercase; }
+.marcar-paso { color: var(--muted); font-weight: 600; text-transform: uppercase; letter-spacing: .05em; font-size: .85rem; }
+.marcar-lista { padding-left: 18px; line-height: 1.5; }
+.marcar-video { width: 100%; max-height: 62dvh; background: #000; border-radius: 14px; object-fit: cover; }
+.espejo { transform: scaleX(-1); }
+.marcar-prev { width: 100%; max-height: 50dvh; object-fit: cover; border-radius: 14px; }
+.marcar-estado { margin: 12px 0; padding: 10px 12px; border-radius: 8px; background: #e3e9fb; color: var(--navy); font-weight: 600; }
+.marcar-estado.ok { background: #dff3e4; color: #17612e; }
+.marcar-estado.mal { background: #fbeae6; color: #7d210a; }
+.marcar-caja .btn { margin-top: 12px; }
+
+/* Asistencia (supervisor/admin) */
+.resumen-dia { color: var(--navy); font-weight: 600; margin: 14px 0; }
+.alerta-caja { background: #fbeae6; border: 2px solid var(--panic); border-radius: 14px; padding: 12px; margin-bottom: 16px; }
+.alerta-caja h3 { color: var(--panic); margin-bottom: 8px; text-transform: uppercase; }
+.alerta-borde { border-left-color: var(--panic); }
+.asis .etq { margin-bottom: 4px; }
+.selfie { width: 100%; max-height: 70dvh; object-fit: contain; border-radius: 12px; background: #000; transform: scaleX(-1); }
+.filtros.dos { grid-template-columns: 1fr 1fr; }
+.limite-fila { grid-template-columns: 1fr 1fr auto; align-items: center; margin-top: 6px; }
+.tabla-caja { overflow-x: auto; background: var(--surface); border-radius: 12px; }
+.tabla { border-collapse: collapse; width: 100%; font-size: .9rem; }
+.tabla th, .tabla td { padding: 8px 10px; text-align: left; border-bottom: 1px solid var(--line); white-space: nowrap; }
+.tabla th { background: var(--navy); color: #fff; position: sticky; top: 0; }
+.fila-mal td { background: #fbeae6; font-weight: 700; color: #7d210a; }

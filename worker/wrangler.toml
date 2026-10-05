@@ -12,6 +12,16 @@ ALLOWED_ORIGIN = "https://racosta123.github.io"
 #   SERVICE_ACCOUNT_JSON  - JSON completo de la cuenta de servicio de Firebase
 #   PIN_PEPPER            - cadena aleatoria larga (>= 32 bytes) para el hash de PIN
 #   SETUP_TOKEN           - token de un solo uso para crear el primer admin (borrar después)
+#   QR_SECRET             - llave HMAC para firmar los QR de los puestos
+
+# Selfies de asistencia: bucket R2 PRIVADO (sin acceso público; solo este Worker lo lee y escribe).
+[[r2_buckets]]
+binding = "SELFIES"
+bucket_name = "marpec-guardias-selfies"
+
+# Recalcula cada 5 min la asistencia de los turnos recientes (alertas de relevo y horas extra en curso).
+[triggers]
+crons = ["*/5 * * * *"]
 
 [[durable_objects.bindings]]
 name = "RATE_LIMITER"

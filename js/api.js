@@ -10,12 +10,14 @@ const MENSAJES = {
   turno_iniciado: "El turno ya inició o terminó.",
   turno_no_modificable: "El turno ya no se puede modificar.",
   qr_invalido: "Código QR no válido.",
+  relevo_pendiente: "Tu relevo aún no marca entrada.",
+  ya_marcada: "Ya registraste esa marca.",
   too_large: "La solicitud es demasiado grande.",
   internal: "Error del servidor. Intenta de nuevo.",
 };
 
 export function crearApi(auth) {
-  return async function api(ruta, { method = "POST", body } = {}) {
+  async function api(ruta, { method = "POST", body } = {}) {
     const user = auth.currentUser;
     if (!user) throw Object.assign(new Error(MENSAJES.unauthorized), { status: 401 });
     const token = await user.getIdToken();
@@ -34,5 +36,20 @@ export function crearApi(auth) {
     const data = await res.json().catch(() => ({}));
     if (!res.ok) throw Object.assign(new Error(data.mensaje || MENSAJES[data.error] || "No se pudo completar la acción."), { status: res.status, code: data.error });
     return data;
+  }
+
+  // Descarga un archivo protegido (p. ej. una selfie) con el token del usuario y devuelve un Blob.
+  api.blob = async (ruta) => {
+    const user = auth.currentUser;
+    if (!user) throw Object.assign(new Error(MENSAJES.unauthorized), { status: 401 });
+    let res;
+    try {
+      res = await fetch(`${config.workerUrl}${ruta}`, { headers: { authorization: `Bearer ${await user.getIdToken()}` }, cache: "no-store", referrerPolicy: "no-referrer" });
+    } catch {
+      throw new Error("No fue posible conectar. Revisa tu conexión.");
+    }
+    if (!res.ok) throw Object.assign(new Error(res.status === 403 ? MENSAJES.forbidden : "No se pudo cargar la imagen."), { status: res.status });
+    return res.blob();
   };
+  return api;
 }

@@ -53,6 +53,32 @@ service cloud.firestore {
       allow create, update, delete: if false;
     }
 
+    // ---- Fase 3: asistencia ----
+    // Marcas (entrada/salida): inmutables; las lee el admin y su propio guardia. Los supervisores
+    // consultan los resultados en 'asistencias' y las selfies pasan SOLO por el Worker.
+    match /marcas/{marcaId} {
+      allow get, list: if esAdmin() || (esGuardia() && resource.data.guardiaUid == request.auth.uid);
+      allow create, update, delete: if false;
+    }
+
+    // Resultados calculados por el Worker (retardo, falta, extras, relevo).
+    match /asistencias/{turnoId} {
+      allow get, list: if esAdmin()
+                       || (esSupervisor() && resource.data.supervisorUid == request.auth.uid)
+                       || (esGuardia() && resource.data.guardiaUid == request.auth.uid);
+      allow create, update, delete: if false;
+    }
+
+    // Ajustes (correcciones con motivo) y autorizaciones (extras, cierre sin relevo): inmutables.
+    match /ajustesAsistencia/{ajusteId} {
+      allow get, list: if esAdmin() || (esSupervisor() && resource.data.supervisorUid == request.auth.uid);
+      allow create, update, delete: if false;
+    }
+    match /autorizaciones/{autId} {
+      allow get, list: if esAdmin() || (esSupervisor() && resource.data.supervisorUid == request.auth.uid);
+      allow create, update, delete: if false;
+    }
+
     match /configuracion/{docId} {
       allow get: if esAdmin();
       allow list, create, update, delete: if false;

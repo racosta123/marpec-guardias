@@ -49,3 +49,13 @@ El teléfono envía lat/lng/precisión; **el Worker** decide `dentroPerimetro` (
 - `configuracion/empresa`: toleranciaRetardoMin, limiteFaltaMin, retardosPorFalta, zonaHoraria (solo se guarda; la usa la Fase 3).
 - `auditoria/{id}`: actorUid, actorRol, actorNombre, accion, objetivo, detalle, ts (servidor). Solo se crea.
 - Índices compuestos: turnos por (guardiaUid | supervisorUid | sitioId) + inicioMs (`firebase/firestore.indexes.json`).
+
+## Implementación de la Fase 3 (campos reales)
+
+- `marcas/{turnoId}_{entrada|salida}` — **inmutable**: turnoId, sitioId, guardiaUid, tipo, `tsMs` (hora del servidor) y `ts`, lat, lng, precisionM, distanciaM, radioM, qrVersion, fotoKey (R2), fotoBytes, horaDispositivoMs, desfaseDispositivoMs, notasEntrega (solo salida), prueba?.
+- `asistencias/{turnoId}` — **resultado recalculable** por el Worker: sitio, supervisorUid, guardia (uid y nombre), inicioMs/finMs, fecha local, estado (`programado`, `por_marcar`, `en_turno`, `salida_pendiente`, `relevo_no_llego`, `cumplido`, `falta`), entradaMs/salidaMs efectivas (marca o ajuste), retardo/retardoMin, falta/motivoFalta, minutosExtra/extraEnCurso/extraEstado, relevoRequerido/relevoLlegado/relevoAlerta/puedeCerrar, resoluciones (extra y cierre) con nombre y motivo, datos para el supervisor (distancia, precisión, hay selfie) y notasEntrega.
+- `ajustesAsistencia/{id}` — **inmutable**: turnoId, tipo, horaMs, horaOriginalMs, motivo, autorUid/autorNombre, tsMs. Gana el último por (turno, tipo).
+- `autorizaciones/{id}` — **inmutable**: `{turno}_cierre` (cierre sin relevo) y `{turno}_extra_{n}` (autorizado/rechazado con minutos, motivo y autor). Gana la última decisión si coincide con los minutos actuales.
+- `configuracion/empresa` — añade ventanaEntradaMin, toleranciaRelevoMin y `limitesExtraPorAnio: [{anio, horasSemana}]`.
+- Selfies: R2 `selfies/{sitioId}/{turnoId}/{tipo}-{rand}.jpg` (bucket privado `marpec-guardias-selfies`).
+- Índices: asistencias por (guardiaUid | supervisorUid | sitioId) + inicioMs.

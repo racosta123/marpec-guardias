@@ -39,6 +39,12 @@ beforeEach(async () => {
     await put("turnos/t1", { sitioId: "siteA", supervisorUid: "sup1", guardiaUid: "g-G001", inicioMs: T, finMs: T + 1 });
     await put("turnos/t2", { sitioId: "siteB", supervisorUid: "sup2", guardiaUid: "g-G002", inicioMs: T, finMs: T + 1 });
     await put("turnos/t3", { sitioId: "siteA", supervisorUid: "sup1", guardiaUid: null, inicioMs: T + 5, finMs: T + 6 });
+    await put("marcas/t1_entrada", { turnoId: "t1", sitioId: "siteA", guardiaUid: "g-G001", tipo: "entrada", tsMs: T, fotoKey: "selfies/siteA/t1/entrada-x.jpg" });
+    await put("marcas/t2_entrada", { turnoId: "t2", sitioId: "siteB", guardiaUid: "g-G002", tipo: "entrada", tsMs: T, fotoKey: "selfies/siteB/t2/entrada-y.jpg" });
+    await put("asistencias/t1", { turnoId: "t1", sitioId: "siteA", supervisorUid: "sup1", guardiaUid: "g-G001", inicioMs: T, estado: "en_turno", extraEstado: "pendiente" });
+    await put("asistencias/t2", { turnoId: "t2", sitioId: "siteB", supervisorUid: "sup2", guardiaUid: "g-G002", inicioMs: T, estado: "falta" });
+    await put("ajustesAsistencia/a1", { turnoId: "t1", supervisorUid: "sup1", guardiaUid: "g-G001", tipo: "entrada", motivo: "x" });
+    await put("autorizaciones/t1_cierre", { tipo: "cierre", turnoId: "t1", supervisorUid: "sup1", guardiaUid: "g-G001", motivo: "x" });
     await put("configuracion/empresa", { toleranciaRetardoMin: 10, limiteFaltaMin: 30, retardosPorFalta: 3 });
     await put("auditoria/e1", { actorUid: "adm1", accion: "sitio.alta", objetivo: "siteA" });
   });
@@ -49,7 +55,7 @@ const guardia = (uid = "g-G001") => env.authenticatedContext(uid, { rol: "guardi
 const sup = (uid = "sup1") => env.authenticatedContext(uid, { rol: "supervisor" });
 const adm = () => env.authenticatedContext("adm1", { rol: "admin" });
 const sinRol = () => env.authenticatedContext("intruso");
-const COLS = ["usuarios/g-G001", "credenciales/G001", "ajustes/sistema", "sitios/siteA", "turnos/t1", "configuracion/empresa", "auditoria/e1", "otra/cosa"];
+const COLS = ["marcas/t1_entrada", "asistencias/t1", "ajustesAsistencia/a1", "autorizaciones/t1_cierre","usuarios/g-G001", "credenciales/G001", "ajustes/sistema", "sitios/siteA", "turnos/t1", "configuracion/empresa", "auditoria/e1", "otra/cosa"];
 
 // ---------------------------------------------------------------- sin sesión
 test("sin sesión: no lee ni escribe NADA", async () => {
@@ -230,4 +236,71 @@ test("Storage: nadie, ni con sesión ni admin", async () => {
     await assertFails(getBytes(ref(ctx.storage(), "fotos/a.jpg")));
     await assertFails(uploadBytes(ref(ctx.storage(), "fotos/a.jpg"), new Uint8Array([1])));
   }
+});
+
+// ---------------------------------------------------------------- Fase 3: asistencia
+test("guardia: lee SU marca y SU asistencia; no las de otro guardia", async () => {
+  const db = guardia().firestore();
+  await assertSucceeds(getDoc(doc(db, "marcas/t1_entrada")));
+  await assertSucceeds(getDoc(doc(db, "asistencias/t1")));
+  await assertSucceeds(getDocs(query(collection(db, "asistencias"), where("guardiaUid", "==", "g-G001"), orderBy("inicioMs"))));
+  await assertFails(getDoc(doc(db, "marcas/t2_entrada")));
+  await assertFails(getDoc(doc(db, "asistencias/t2")));
+  await assertFails(getDocs(query(collection(db, "asistencias"), where("guardiaUid", "==", "g-G002"))));
+  await assertFails(getDocs(collection(db, "marcas")));
+  await assertFails(getDocs(collection(db, "asistencias")));
+});
+
+test("guardia: no ve ajustes ni autorizaciones y no escribe marcas ni asistencias", async () => {
+  const db = guardia().firestore();
+  await assertFails(getDoc(doc(db, "ajustesAsistencia/a1")));
+  await assertFails(getDoc(doc(db, "autorizaciones/t1_cierre")));
+  await assertFails(setDoc(doc(db, "marcas/t1_salida"), { turnoId: "t1", guardiaUid: "g-G001", tipo: "salida", tsMs: 1 }));
+  await assertFails(setDoc(doc(db, "marcas/falsa_entrada"), { guardiaUid: "g-G001", tsMs: 1 }));
+  await assertFails(updateDoc(doc(db, "marcas/t1_entrada"), { tsMs: 0 }));
+  await assertFails(deleteDoc(doc(db, "marcas/t1_entrada")));
+  await assertFails(updateDoc(doc(db, "asistencias/t1"), { extraEstado: "autorizado", estado: "cumplido" }));
+  await assertFails(setDoc(doc(db, "asistencias/nueva"), { guardiaUid: "g-G001", estado: "cumplido" }));
+  await assertFails(setDoc(doc(db, "ajustesAsistencia/mio"), { turnoId: "t1", tipo: "entrada", motivo: "x" }));
+});
+
+test("supervisor: ve asistencias, ajustes y autorizaciones de SUS sitios; no las de otros; no escribe; no lee marcas", async () => {
+  const db = sup().firestore();
+  await assertSucceeds(getDoc(doc(db, "asistencias/t1")));
+  await assertSucceeds(getDocs(query(collection(db, "asistencias"), where("supervisorUid", "==", "sup1"), orderBy("inicioMs"))));
+  await assertSucceeds(getDocs(query(collection(db, "asistencias"), where("supervisorUid", "==", "sup1"), where("extraEstado", "==", "pendiente"))));
+  await assertSucceeds(getDoc(doc(db, "ajustesAsistencia/a1")));
+  await assertSucceeds(getDoc(doc(db, "autorizaciones/t1_cierre")));
+  await assertFails(getDoc(doc(db, "asistencias/t2")));
+  await assertFails(getDocs(query(collection(db, "asistencias"), where("supervisorUid", "==", "sup2"))));
+  await assertFails(getDocs(collection(db, "asistencias")));
+  await assertFails(getDoc(doc(db, "marcas/t1_entrada"))); // GPS y ruta de la foto: solo admin y el propio guardia
+  await assertFails(updateDoc(doc(db, "asistencias/t1"), { extraEstado: "autorizado" }));
+  await assertFails(setDoc(doc(db, "autorizaciones/falsa"), { tipo: "extra", decision: "autorizado" }));
+  await assertFails(setDoc(doc(db, "ajustesAsistencia/falso"), { tipo: "entrada" }));
+  const otro = sup("sup2").firestore();
+  await assertFails(getDoc(doc(otro, "asistencias/t1")));
+  await assertFails(getDoc(doc(otro, "ajustesAsistencia/a1")));
+  await assertFails(getDoc(doc(otro, "autorizaciones/t1_cierre")));
+});
+
+test("admin: lee todo lo de asistencia; nadie escribe desde el cliente (marcas, ajustes y autorizaciones inmutables)", async () => {
+  const db = adm().firestore();
+  for (const p of ["marcas/t1_entrada", "marcas/t2_entrada", "asistencias/t1", "asistencias/t2", "ajustesAsistencia/a1", "autorizaciones/t1_cierre"]) await assertSucceeds(getDoc(doc(db, p)));
+  await assertSucceeds(getDocs(collection(db, "asistencias")));
+  await assertFails(setDoc(doc(db, "marcas/x_entrada"), { tsMs: 1 }));
+  await assertFails(updateDoc(doc(db, "marcas/t1_entrada"), { tsMs: 1 }));
+  await assertFails(deleteDoc(doc(db, "marcas/t1_entrada")));
+  await assertFails(updateDoc(doc(db, "asistencias/t1"), { estado: "cumplido" }));
+  await assertFails(setDoc(doc(db, "ajustesAsistencia/x"), { tipo: "entrada" }));
+  await assertFails(updateDoc(doc(db, "ajustesAsistencia/a1"), { motivo: "otro" }));
+  await assertFails(deleteDoc(doc(db, "autorizaciones/t1_cierre")));
+});
+
+test("guardia dado de baja pierde también marcas y asistencias al instante", async () => {
+  const db = guardia().firestore();
+  await assertSucceeds(getDoc(doc(db, "asistencias/t1")));
+  await env.withSecurityRulesDisabled(async (c) => updateDoc(doc(c.firestore(), "usuarios/g-G001"), { activo: false }));
+  await assertFails(getDoc(doc(db, "asistencias/t1")));
+  await assertFails(getDoc(doc(db, "marcas/t1_entrada")));
 });

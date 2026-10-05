@@ -51,6 +51,13 @@ export async function createWorld() {
     QR_SECRET: "secreto-qr-de-prueba-0123456789abcdef0123456789",
     SERVICE_ACCOUNT_JSON: JSON.stringify({ client_email: "sa@marpec-test.iam.gserviceaccount.com", private_key: saPem }),
     RATE_LIMITER,
+    // R2 simulado en memoria
+    SELFIES: {
+      objetos: new Map(),
+      async put(k, v, o) { this.objetos.set(k, { bytes: new Uint8Array(v), o }); },
+      async get(k) { const x = this.objetos.get(k); return x ? { body: new Response(x.bytes).body, httpMetadata: x.o?.httpMetadata } : null; },
+      async delete(k) { this.objetos.delete(k); },
+    },
   };
 
   const realFetch = globalThis.fetch;

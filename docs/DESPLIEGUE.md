@@ -52,3 +52,14 @@ Se reclama de forma atómica: la segunda llamada responde `404` para siempre. De
 4. Worker: `cd worker && npx wrangler deploy`. Frontend: push a `main` (GitHub Pages).
 5. Verificación en real: `node tools/e2e-real-fase2.mjs <uid-admin>`.
 6. Antes de entregar a MARPEC: `node tools/borrar-pruebas.mjs --aplicar`.
+
+## Fase 3 — pasos de despliegue
+
+> **Requisito previo (lo hace el dueño de la cuenta):** activar **Cloudflare R2** en https://dash.cloudflare.com → *R2 Object Storage* → «Purchase R2 Plan / Get started» (puede pedir un método de pago; el plan gratuito incluye 10 GB-mes, sin cargo mientras no se exceda). Después: `npx wrangler r2 bucket create marpec-guardias-selfies` y **no** habilitar acceso público ni dominio personalizado.
+
+1. Respaldo previo: `node tools/respaldar-firestore.mjs`.
+2. Reglas e índices: `firebase deploy --only firestore --project marpec-guardias` (esperar a que los índices nuevos de `asistencias` queden *READY*).
+3. Worker (incluye el cron de 5 min y el binding R2): `cd worker && npx wrangler deploy`.
+4. Frontend: push a `main` (service worker v5).
+5. Verificación en real: `node tools/e2e-real-fase3.mjs <uid-admin>` (~4 min).
+6. Antes de entregar a MARPEC: `node tools/borrar-pruebas.mjs --aplicar` (borra también las selfies de prueba en R2; la bitácora no se borra, sus entradas de prueba llevan `prueba=true`).

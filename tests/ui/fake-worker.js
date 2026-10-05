@@ -18,6 +18,16 @@ window.fetch = async (url, init = {}) => {
     const sid = new URL(u).searchParams.get("id");
     return ok({ payload: `MPC1.${sid}.1.AAAAAAAAAAAAAAAAAAAAAA`, version: 1, sitio: { id: sid, nombre: store.sitios[sid]?.nombre || "Sitio", direccion: store.sitios[sid]?.direccion || "" } });
   }
+  if (ruta === "/marcas/entrada" || ruta === "/marcas/salida") return ok({ ok: true, retardo: false, retardoMin: 0, estado: "en_turno" }, 201);
+  if (ruta === "/asistencia/recalcular") return ok({ ok: true, turnos: 0 });
+  if (ruta === "/relevo/notas") return ok({ hay: true, de: "Gema Guardia", cerrado: true, notas: "Portón 2 con falla. Llaves en caseta.", turnoId: "t0" });
+  if (ruta === "/selfies") return ok({ error: "simulado" }, 404);
+  if (["/ajustes", "/extras/resolver", "/relevo/autorizar-cierre"].includes(ruta)) return ok({ ok: true, extraEstado: "autorizado" }, 201);
+  if (ruta === "/reportes/asistencia") {
+    const filas = Object.entries(store.asistencias).map(([id, a]) => ({ id, ...a }));
+    return ok({ desde: "x", hasta: "y", filas, resumen: [{ guardiaUid: "g-G001", guardiaNombre: "Gael Guardia", turnos: 2, cumplidos: 1, retardos: 1, faltas: 0, minutosExtra: 95, faltasPorRetardos: 0, faltasTotales: 0 }],
+      semanal: [{ guardiaUid: "g-G001", semana: "2026-09-28", pendienteMin: 595, autorizadoMin: 0, rechazadoMin: 0, horasConsideradas: 9.92, limiteHoras: 9, excedeLimite: true }], retardosPorFalta: 3 });
+  }
   if (ruta === "/admin/usuarios") {
     const uid = body.rol === "guardia" ? `g-${body.numeroEmpleado.toUpperCase()}` : `s-${id()}`;
     if (store.usuarios[uid]) return ok({ error: "exists" }, 409);
