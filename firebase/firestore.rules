@@ -110,6 +110,41 @@ service cloud.firestore {
       allow create, update, delete: if false;
     }
 
+    // ---- Fase 5: incidencias, visitantes y bitácora ----
+    // Los registros originales (incidencias, entradas/salidas de visitantes, novedades, seguimientos) son
+    // inmutables y solo los lee el admin. Supervisor y guardia consultan los RESÚMENES calculados por el Worker.
+    // Las fotos pasan SOLO por el Worker. El guardia lee visitantes y bitácoras vía Worker (con turno activo).
+    match /incidencias/{incId} {
+      allow get, list: if esAdmin();
+      allow create, update, delete: if false;
+    }
+    match /seguimientosIncidencia/{segId} {
+      allow get, list: if esAdmin();
+      allow create, update, delete: if false;
+    }
+    match /incidenciasResumen/{incId} {
+      allow get, list: if esAdmin()
+                       || (esSupervisor() && resource.data.supervisorUid == request.auth.uid)
+                       || (esGuardia() && resource.data.guardiaUid == request.auth.uid);
+      allow create, update, delete: if false;
+    }
+    match /visitantes/{visId} {
+      allow get, list: if esAdmin();
+      allow create, update, delete: if false;
+    }
+    match /salidasVisitante/{visId} {
+      allow get, list: if esAdmin();
+      allow create, update, delete: if false;
+    }
+    match /visitantesVista/{visId} {
+      allow get, list: if esAdmin() || (esSupervisor() && resource.data.supervisorUid == request.auth.uid);
+      allow create, update, delete: if false;
+    }
+    match /novedades/{novId} {
+      allow get, list: if esAdmin();
+      allow create, update, delete: if false;
+    }
+
     match /configuracion/{docId} {
       allow get: if esAdmin();
       allow list, create, update, delete: if false;

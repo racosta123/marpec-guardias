@@ -72,3 +72,13 @@ Se reclama de forma atómica: la segunda llamada responde `404` para siempre. De
 4. Frontend: push a `main` (service worker v6).
 5. Verificación en real: `node tools/e2e-real-fase4.mjs <uid-admin>` (~8 min).
 6. Antes de entregar a MARPEC: `node tools/borrar-pruebas.mjs --aplicar` (ahora también borra puntos, programas, rondines, escaneos y sus fotos de prueba en R2).
+
+## Fase 5 — pasos de despliegue
+
+1. Respaldo previo: `node tools/respaldar-firestore.mjs`.
+2. Reglas e índices: `firebase deploy --only firestore --project marpec-guardias` (esperar a que los índices nuevos queden *READY*).
+3. Worker (rutas nuevas y purga por retención en el cron; el bucket R2 y los secrets ya existen): `cd worker && npx wrangler deploy`.
+4. Frontend: push a `main` (service worker v7).
+5. Verificación en real: `node tools/e2e-real-fase5.mjs <uid-admin>` (~8 min; incluye la prueba de retención con el cron real).
+6. Antes de entregar a MARPEC: `node tools/borrar-pruebas.mjs --aplicar` (ahora también borra incidencias, visitantes, novedades y sus fotos de prueba en R2).
+7. Imprimir y colocar el cartel `aviso-visitantes.html` (borrador: requiere revisión legal y completar los datos de contacto).

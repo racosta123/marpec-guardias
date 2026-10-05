@@ -19,6 +19,18 @@ window.fetch = async (url, init = {}) => {
     return ok({ payload: `MPC1.${sid}.1.AAAAAAAAAAAAAAAAAAAAAA`, version: 1, sitio: { id: sid, nombre: store.sitios[sid]?.nombre || "Sitio", direccion: store.sitios[sid]?.direccion || "" } });
   }
   if (ruta === "/marcas/entrada" || ruta === "/marcas/salida") return ok({ ok: true, retardo: false, retardoMin: 0, estado: "en_turno" }, 201);
+  // ---- Fase 5 simulada ----
+  if (ruta === "/catalogo/incidencias") return ok({ tipos: [["acceso_no_autorizado", "Acceso no autorizado"], ["robo", "Robo"], ["danio", "Daño"], ["falla_electrica", "Falla eléctrica"], ["falla_equipo", "Falla de equipo"], ["persona_sospechosa", "Persona sospechosa"], ["otro", "Otro"]].map(([id, nombre]) => ({ id, nombre, activo: true })), gravedades: ["baja", "media", "alta"] });
+  if (ruta === "/incidencias") return ok({ ok: true, id: "inc-nueva", gravedad: body.gravedad, nFotos: (body.fotos || []).length }, 201);
+  if (ruta === "/novedades") return ok({ ok: true, id: "nov-1", tsMs: Date.now() }, 201);
+  if (ruta === "/visitantes/dentro") return ok({ sitioId: "siteA", dentro: [{ id: "v1", nombre: "Luis Pérez", visitaA: "Casa 12", motivo: "visita", empresa: "", placas: "ABC-123", entradaMs: Date.now() - 3600e3, guardiaNombre: "Gael Guardia" }] });
+  if (ruta === "/visitantes/entrada" || ruta === "/visitantes/salida") return ok({ ok: true, id: "v-nuevo" }, 201);
+  if (ruta === "/incidencias/seguimiento") return ok({ ok: true, estado: body.estadoNuevo || "abierta" }, 201);
+  if (ruta === "/incidencias/foto" || ruta === "/visitantes/foto") return ok({ error: "simulado" }, 404);
+  if (ruta === "/admin/catalogo-incidencias") return ok({ ok: true, tipos: body.tipos });
+  if (ruta === "/bitacora/turno") return ok({ turnoId: "t5", sitioNombre: "Plaza Norte", guardiaNombre: "Gael Guardia", inicioMs: Date.now() - 3600e3, finMs: Date.now() + 3 * 3600e3, cerrado: false, notasEntrega: null,
+    items: [{ tsMs: Date.now() - 3000e3, tipo: "entrada", titulo: "Entrada al turno", detalle: "" }, { tsMs: Date.now() - 2400e3, tipo: "novedad", titulo: "Novedad", detalle: "Se cambió la bombilla del pasillo." }, { tsMs: Date.now() - 1800e3, tipo: "visitante_entrada", titulo: "Entra visitante: Luis Pérez", detalle: "Visita a Casa 12 · visita" }, { tsMs: Date.now() - 1200e3, tipo: "incidencia", titulo: "Incidencia (alta): Robo", detalle: "Candado forzado", gravedad: "alta" }], visitantesDentro: [{ id: "v1", nombre: "Luis Pérez", entradaMs: Date.now() - 1800e3 }] });
+  if (ruta === "/bitacora/anterior") return ok({ hay: true, bitacora: { sitioNombre: "Plaza Norte", guardiaNombre: "Gema Guardia", inicioMs: Date.now() - 13 * 3600e3, finMs: Date.now() - 1 * 3600e3, items: [{ tsMs: Date.now() - 5 * 3600e3, tipo: "novedad", titulo: "Novedad", detalle: "Portón 2 con falla." }, { tsMs: Date.now() - 3600e3, tipo: "salida", titulo: "Salida del turno", detalle: "Notas de entrega: llaves en caseta." }], visitantesDentro: [{ id: "v9", nombre: "Pedro Sigue Dentro", entradaMs: Date.now() - 4 * 3600e3 }] } });
   // ---- Fase 4 simulada ----
   if (ruta === "/rondines/recalcular") return ok({ ok: true, rondines: 0 });
   if (ruta === "/rondines/proximo") {

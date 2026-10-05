@@ -78,6 +78,20 @@ store.rondines = {
   t1_2: rd("t1_2", 2, "no_iniciado", 0),
 };
 
+// Fase 5: incidencias y visitantes simulados
+store.incidenciasResumen = {
+  i1: { incidenciaId: "i1", sitioId: "siteA", sitioNombre: "Plaza Norte", supervisorUid: "sup1", guardiaUid: "g-G001", guardiaNombre: "Gael Guardia", turnoId: "t1", tipoId: "robo", tipoNombre: "Robo", gravedad: "alta", descripcion: "Candado forzado en el portón principal.",
+    creadoMs: ahora - 2 * 3600e3, lat: 29.07, lng: -110.95, distanciaM: 14, nFotos: 2, estado: "abierta", alta: true, seguimientos: [] },
+  i2: { incidenciaId: "i2", sitioId: "siteA", sitioNombre: "Plaza Norte", supervisorUid: "sup1", guardiaUid: "g-G001", guardiaNombre: "Gael Guardia", turnoId: "t1", tipoId: "falla_electrica", tipoNombre: "Falla eléctrica", gravedad: "baja", descripcion: "Luminaria del pasillo apagada.",
+    creadoMs: ahora - 5 * 3600e3, nFotos: 0, estado: "en_atencion", alta: false, seguimientos: [{ tipo: "estado", estadoNuevo: "en_atencion", texto: "Se avisó a mantenimiento.", autorNombre: "Sara Supervisora", autorRol: "supervisor", tsMs: ahora - 4 * 3600e3 }] },
+  i3: { incidenciaId: "i3", sitioId: "siteB", sitioNombre: "Bodega Sur", supervisorUid: "sup2", guardiaUid: "g-G002", guardiaNombre: "Gema Guardia", turnoId: "t4", tipoId: "otro", tipoNombre: "Otro", gravedad: "alta", descripcion: "Incidencia de otro sitio.", creadoMs: ahora - 3600e3, nFotos: 0, estado: "abierta", alta: true, seguimientos: [] },
+};
+store.visitantesVista = {
+  v1: { visitanteId: "v1", sitioId: "siteA", sitioNombre: "Plaza Norte", supervisorUid: "sup1", nombre: "Luis Pérez", visitaA: "Casa 12", motivo: "visita", empresa: "", placas: "ABC-123", guardiaNombre: "Gael Guardia", fotoKey: "x", entradaMs: ahora - 3600e3, dentro: true, salidaMs: null },
+  v2: { visitanteId: "v2", sitioId: "siteA", sitioNombre: "Plaza Norte", supervisorUid: "sup1", nombre: "Marta Proveedora", visitaA: "Administración", motivo: "proveedor", empresa: "Agua Pura", placas: "", guardiaNombre: "Gael Guardia", fotoKey: null, entradaMs: ahora - 2 * 3600e3, dentro: false, salidaMs: ahora - 3600e3 },
+  v3: { visitanteId: "v3", sitioId: "siteB", sitioNombre: "Bodega Sur", supervisorUid: "sup2", nombre: "Visitante de otro sitio", visitaA: "X", motivo: "otro", empresa: "", placas: "", entradaMs: ahora - 3600e3, dentro: true, salidaMs: null },
+};
+
 // ---- API mínima compatible con lo que importan las vistas ----
 export const initializeApp = () => ({});
 export const getFirestore = () => ({ __db: true });

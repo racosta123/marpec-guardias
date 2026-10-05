@@ -4,6 +4,7 @@ import { h, limpiar, poner } from "../ui.js";
 import { diaLargo, duracionH, hora } from "../tz.js";
 import { abrirMarcado } from "./marcar.js";
 import { abrirRondin } from "./rondin.js";
+import { abrirBitacora, abrirIncidencia, abrirNovedad, abrirVisitantes } from "./libro.js";
 
 const H = 3600e3;
 
@@ -71,10 +72,29 @@ export async function vistaGuardia(raiz, ctx) {
       ayuda ? h("p", { class: "ayuda-relevo" }, ayuda) : null,
       boton,
       h("div", { class: "consignas-caja" }, h("h4", {}, "Consignas del puesto"), h("p", {}, consignas || "Sin consignas registradas."))),
+    h("div", { id: "libro-card" }),
     h("div", { id: "rondines-card" }),
     h("div", { id: "notas-relevo" }),
     listaSiguientes(siguientes),
     h("p", { class: "ayuda" }, "Horario de Hermosillo (UTC-7, sin horario de verano). Para marcar se usa tu ubicación solo en ese momento."));
+
+  // Libro del turno: novedades, incidencias, visitantes y bitácora (solo con entrada marcada y turno abierto)
+  if (entradaMs && !salidaMs) {
+    const dest = raiz.querySelector("#libro-card");
+    const ctxLibro = { turno: t, api, alTerminar: recargar };
+    const btnVis = h("button", { class: "btn secundario libro-btn", type: "button", onclick: () => abrirVisitantes(ctxLibro) }, "🚶 Visitantes");
+    poner(dest, h("section", { class: "tarjeta" }, h("h4", { class: "titulo-seccion" }, "Libro del turno"),
+      h("div", { class: "libro-botones" },
+        h("button", { class: "btn primario libro-btn", type: "button", onclick: () => abrirNovedad(ctxLibro) }, "📝 Novedad"),
+        h("button", { class: "btn peligro libro-btn", type: "button", onclick: () => abrirIncidencia(ctxLibro) }, "⚠️ Incidencia"),
+        btnVis,
+        h("button", { class: "btn secundario libro-btn", type: "button", onclick: () => abrirBitacora({ turno: t, api }) }, "📖 Bitácora"))));
+    api(`/visitantes/dentro?turnoId=${encodeURIComponent(t.id)}`, { method: "GET" }).then((v) => { if (v.dentro.length) btnVis.textContent = `🚶 Visitantes (${v.dentro.length} dentro)`; }).catch(() => {});
+    api(`/bitacora/anterior?turnoId=${encodeURIComponent(t.id)}`, { method: "GET" }).then((a) => {
+      if (!a.hay || !a.bitacora.visitantesDentro?.length) return;
+      poner(dest, h("p", { class: "alerta" }, `Del turno anterior siguen dentro: ${a.bitacora.visitantesDentro.map((x) => x.nombre).join(", ")}.`));
+    }).catch(() => {});
+  }
 
   // Rondines (solo con entrada marcada y turno abierto)
   if (entradaMs && !salidaMs) {

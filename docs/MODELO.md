@@ -68,3 +68,15 @@ El teléfono envía lat/lng/precisión; **el Worker** decide `dentroPerimetro` (
 - `escaneos/{rondinId}_{puntoId}` — **inmutable**: turno, sitio, guardia, punto, `tsMs` (servidor) y `ts`, lat, lng, precisionM, distanciaM, nota, fotoKey (R2 `rondines/…`), horaDispositivoMs y desfase, prueba?.
 - `ajustesRondin/{id}` — **inmutable**: rondinId, tipo (`marcar_punto`|`justificar_rondin`), puntoId?, motivo, autorUid/autorNombre.
 - Índices: rondines por (guardiaUid | supervisorUid | sitioId) + programadoMs.
+
+## Implementación de la Fase 5 (campos reales)
+
+- `incidencias/{id}` — **inmutable**: sitioId, turnoId, guardiaUid/Nombre, tipoId/tipoNombre, gravedad, descripcion, `creadoMs` (servidor), lat/lng/precisionM/distanciaM, fotoKeys[≤3] (R2 `incidencias/…`), horaDispositivoMs, prueba?.
+- `seguimientosIncidencia/{id}` — **inmutable**: incidenciaId, tipo (`comentario`|`estado`), estadoNuevo, texto, autorUid/Nombre/Rol, tsMs.
+- `incidenciasResumen/{id}` — **recalculable**: datos de la incidencia + estado actual, `alta`, supervisorUid, nFotos y `seguimientos[]`.
+- `visitantes/{id}` — **inmutable**: sitioId, turnoId, guardia, nombre, visitaA, motivo, empresa, placas, fotoKey (vehículo/placa), entradaMs, expiraMs. Sin campos de identificación.
+- `salidasVisitante/{id}` — **inmutable**: visitanteId, guardiaUid, turnoId, salidaMs.
+- `visitantesVista/{id}` — **recalculable**: entrada + `dentro`, salidaMs, salidaTurnoId, supervisorUid.
+- `novedades/{id}` — **inmutable**: turnoId, sitioId, guardiaUid, texto, tsMs.
+- `configuracion/catalogos` — `tiposIncidencia: [{id, nombre, activo}]` (no se eliminan); `configuracion/empresa` — añade `retencionVisitantesDias`.
+- Índices: incidenciasResumen (guardiaUid | supervisorUid | sitioId) + creadoMs; visitantesVista (supervisorUid | sitioId) + entradaMs.

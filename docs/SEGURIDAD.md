@@ -108,3 +108,29 @@
 2. **Puntos sin GPS** dependen solo del QR firmado.
 3. **Cron:** cada ciclo recalcula solo los rondines con ventana activa; los rondines ya cerrados se consolidan al pasar su plazo. Los reportes de más de 2 días no fuerzan recálculo de rondines pasados.
 4. **Cambios de puntos a mitad de turno:** los rondines cuya ventana ya abrió conservan los puntos que tenían; los siguientes usan la lista nueva.
+
+## Fase 5 — Incidencias, visitantes y bitácora del turno
+
+**Quién puede escribir:** solo el Worker. Un guardia necesita **turno propio, programado, con entrada marcada y sin salida** para reportar incidencias, registrar visitantes (entrada y salida), agregar novedades o ver «dentro ahora» (si no, 409 `sin_entrada`/`sin_turno_activo`; turno ajeno, 403). Supervisor, admin y anónimos no pueden crear estos registros.
+
+**Esquema estricto:** todas las entradas nuevas rechazan cualquier campo no listado. En visitantes los únicos datos son nombre, a quién visita, motivo (visita, proveedor, paquetería, servicio, otro), empresa y placas opcionales, y una foto opcional del **vehículo o la placa**. **No existe ningún campo para identificaciones** (INE, licencia, pasaporte) ni sus números, y la interfaz advierte no fotografiarlas.
+
+**Inmutabilidad:** `incidencias`, `seguimientosIncidencia`, `visitantes`, `salidasVisitante` y `novedades` solo se crean. El seguimiento del supervisor (comentarios y cambios de estado `abierta → en atención → cerrada`, sin reabrir) son registros NUEVOS con nombre, rol y hora; el original no cambia (verificado en real con `updateTime = createTime`). Los **resúmenes** (`incidenciasResumen`, `visitantesVista`) son datos calculados/recalculables que usan las pantallas.
+
+**Lecturas (reglas):** admin lee todo; el supervisor lee los resúmenes de **sus** sitios; el guardia lee solo el resumen de **sus** incidencias. Los originales, las novedades y los registros de visitantes solo los lee el admin; el guardia obtiene visitantes «dentro ahora» y bitácoras por el Worker (con turno activo, y la del turno anterior de su sitio solo si tiene turno propio). La baja de una persona corta estas lecturas al instante.
+
+**Fotos (R2 privado, mismas reglas de las selfies):** `GET /incidencias/foto` y `GET /visitantes/foto` solo para admin o el supervisor **actual** del sitio; ni el propio guardia autor las ve. Hasta 3 fotos por incidencia, 1 por visitante, JPEG real de ≤150 KB.
+
+**Gravedad alta:** el resumen lleva `alta=true`; el panel de supervisor/admin muestra una alerta destacada mientras no esté cerrada (las notificaciones push son de la Fase 6).
+
+**Retención de visitantes:** configurable por el admin (7–1825 días, 90 por defecto). El cron del Worker (cada 5 min) borra, por cada visitante cuya entrada es anterior al corte, su registro de entrada, su salida, su vista y su foto en R2 (`visitantes/…`) y deja un registro de la purga en la bitácora. **Toca únicamente esas tres colecciones y esas fotos**; verificado en real con señuelos (incidencia, novedad y marca antiguas, y su foto) que no se borran.
+
+**Bitácora del turno:** vista consolidada cronológica (entrada, novedades, rondines, incidencias, visitantes, salida y notas de relevo); el guardia entrante ve la del turno anterior de su sitio y quién sigue dentro. Exportable a CSV (BOM UTF-8, escape y neutralización de fórmulas).
+
+**Aviso a visitantes:** cartel imprimible en borrador (`aviso-visitantes.html`); el aviso de privacidad de la app describe los datos de visitantes y que no se guardan identificaciones.
+
+### Riesgos pendientes de la Fase 5
+1. **Fotos con identificaciones:** el servidor no puede saber qué aparece en una foto; la protección es de proceso (advertencia en pantalla, el campo solo admite «vehículo o placa», revisión del supervisor y retención corta).
+2. **Resúmenes del supervisor:** `supervisorUid` en `incidenciasResumen` se toma del sitio al crear/seguir; si el sitio cambia de supervisor, se actualiza en el siguiente seguimiento (las fotos y la bitácora ya siguen al supervisor actual).
+3. **Retención en R2:** si un objeto de foto quedó huérfano por una falla parcial, no se borra por la purga (solo se borran las fotos referenciadas por registros vencidos).
+4. **Límites del cron:** la purga procesa hasta 200 registros por ciclo (cada 5 min).

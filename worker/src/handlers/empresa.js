@@ -14,6 +14,7 @@ export async function guardarConfig(env, request) {
   // Fase 3 (opcionales; si no vienen se usan los valores por defecto)
   const ventanaEntradaMin = b.ventanaEntradaMin === undefined ? CONFIG_DEFECTO.ventanaEntradaMin : int(b.ventanaEntradaMin, "Ventana de entrada (min)", 0, 240);
   const toleranciaRelevoMin = b.toleranciaRelevoMin === undefined ? CONFIG_DEFECTO.toleranciaRelevoMin : int(b.toleranciaRelevoMin, "Tolerancia de relevo (min)", 0, 240);
+  const retencionVisitantesDias = b.retencionVisitantesDias === undefined ? CONFIG_DEFECTO.retencionVisitantesDias : int(b.retencionVisitantesDias, "Retención de visitantes (días)", 7, 1825);
   let limitesExtraPorAnio = CONFIG_DEFECTO.limitesExtraPorAnio;
   if (b.limitesExtraPorAnio !== undefined) {
     if (!Array.isArray(b.limitesExtraPorAnio) || b.limitesExtraPorAnio.length > 12) throw bad("Límites de horas extra: hasta 12 años.");
@@ -26,7 +27,7 @@ export async function guardarConfig(env, request) {
       return { anio, horasSemana };
     }).sort((p, q) => p.anio - q.anio);
   }
-  const data = { toleranciaRetardoMin, limiteFaltaMin, retardosPorFalta, ventanaEntradaMin, toleranciaRelevoMin, limitesExtraPorAnio, zonaHoraria: TZ };
+  const data = { toleranciaRetardoMin, limiteFaltaMin, retardosPorFalta, ventanaEntradaMin, toleranciaRelevoMin, retencionVisitantesDias, limitesExtraPorAnio, zonaHoraria: TZ };
   await commit(env, [
     { path: "configuracion/empresa", data, serverTimeField: "actualizadoEn" },
     auditoria(actor, "config.guardar", "configuracion/empresa", data),

@@ -20,6 +20,9 @@ import { recalcularVentana } from "./handlers/asistenciaSvc.js";
 import { actualizarPunto, crearPunto, guardarPrograma, obtenerQrPunto, obtenerQrSitioPuntos, regenerarQrPunto } from "./handlers/puntos.js";
 import { ajusteRondin, escanearPunto, proximoRondin, recalcularRondines, reporteRondines, verFotoRondin } from "./handlers/rondines.js";
 import { recalcularRondinesVentana } from "./handlers/rondinesSvc.js";
+import { catalogoIncidencias, crearIncidencia, fotoIncidencia, guardarCatalogo, seguimientoIncidencia } from "./handlers/incidencias.js";
+import { entradaVisitante, fotoVisitante, purgarVisitantes, salidaVisitante, visitantesDentro } from "./handlers/visitantes.js";
+import { bitacoraAnterior, bitacoraTurno, crearNovedad } from "./handlers/bitacora.js";
 
 export { RateLimiter };
 
@@ -215,6 +218,19 @@ const ROUTES = {
   "POST /rondines/ajuste": ajusteRondin,
   "POST /rondines/recalcular": recalcularRondines,
   "GET /reportes/rondines": reporteRondines,
+  // Fase 5: incidencias, visitantes y bitácora
+  "GET /catalogo/incidencias": catalogoIncidencias,
+  "POST /admin/catalogo-incidencias": guardarCatalogo,
+  "POST /incidencias": crearIncidencia,
+  "POST /incidencias/seguimiento": seguimientoIncidencia,
+  "GET /incidencias/foto": fotoIncidencia,
+  "POST /visitantes/entrada": entradaVisitante,
+  "POST /visitantes/salida": salidaVisitante,
+  "GET /visitantes/dentro": visitantesDentro,
+  "GET /visitantes/foto": fotoVisitante,
+  "POST /novedades": crearNovedad,
+  "GET /bitacora/turno": bitacoraTurno,
+  "GET /bitacora/anterior": bitacoraAnterior,
 };
 
 export default {
@@ -222,6 +238,7 @@ export default {
   async scheduled(_event, env, ctx) {
     const ahora = Date.now();
     ctx.waitUntil(recalcularVentana(env, ahora - 40 * 3600e3, ahora + 3600e3, { omitirCerrados: true, ahora }).catch((e) => console.error("cron", e?.message)));
+    ctx.waitUntil(purgarVisitantes(env, ahora).catch((e) => console.error("cron retención", e?.message)));
     ctx.waitUntil(recalcularRondinesVentana(env, ahora - 40 * 3600e3, ahora + 3600e3, { ahora, soloActivos: true }).catch((e) => console.error("cron rondines", e?.message)));
   },
 

@@ -53,6 +53,16 @@ beforeEach(async () => {
     await put("rondines/t2_0", { rondinId: "t2_0", turnoId: "t2", sitioId: "siteB", supervisorUid: "sup2", guardiaUid: "g-G002", programadoMs: T, estado: "completo" });
     await put("escaneos/t1_0_pA1", { rondinId: "t1_0", sitioId: "siteA", guardiaUid: "g-G001", puntoId: "pA1", tsMs: T, lat: 29.07, lng: -110.95, fotoKey: "rondines/siteA/t1/0/pA1-x.jpg" });
     await put("ajustesRondin/aj1", { rondinId: "t1_0", supervisorUid: "sup1", guardiaUid: "g-G001", tipo: "justificar_rondin", motivo: "x" });
+    await put("incidencias/i1", { sitioId: "siteA", guardiaUid: "g-G001", tipoId: "robo", gravedad: "alta", descripcion: "x", fotoKeys: ["incidencias/siteA/i1/0-x.jpg"] });
+    await put("incidencias/i2", { sitioId: "siteB", guardiaUid: "g-G002", tipoId: "robo", gravedad: "baja", descripcion: "y", fotoKeys: [] });
+    await put("incidenciasResumen/i1", { incidenciaId: "i1", sitioId: "siteA", supervisorUid: "sup1", guardiaUid: "g-G001", gravedad: "alta", estado: "abierta", creadoMs: T });
+    await put("incidenciasResumen/i2", { incidenciaId: "i2", sitioId: "siteB", supervisorUid: "sup2", guardiaUid: "g-G002", gravedad: "baja", estado: "abierta", creadoMs: T });
+    await put("seguimientosIncidencia/s1", { incidenciaId: "i1", tipo: "comentario", texto: "x", autorNombre: "Sara", tsMs: T });
+    await put("visitantes/v1", { sitioId: "siteA", nombre: "Luis", visitaA: "Casa 1", motivo: "visita", fotoKey: "visitantes/siteA/v1.jpg", entradaMs: T });
+    await put("salidasVisitante/v1", { visitanteId: "v1", sitioId: "siteA", salidaMs: T + 1 });
+    await put("visitantesVista/v1", { visitanteId: "v1", sitioId: "siteA", supervisorUid: "sup1", nombre: "Luis", dentro: true, entradaMs: T });
+    await put("visitantesVista/v2", { visitanteId: "v2", sitioId: "siteB", supervisorUid: "sup2", nombre: "Marta", dentro: true, entradaMs: T });
+    await put("novedades/n1", { turnoId: "t1", sitioId: "siteA", guardiaUid: "g-G001", texto: "x", tsMs: T });
     await put("configuracion/empresa", { toleranciaRetardoMin: 10, limiteFaltaMin: 30, retardosPorFalta: 3 });
     await put("auditoria/e1", { actorUid: "adm1", accion: "sitio.alta", objetivo: "siteA" });
   });
@@ -371,6 +381,69 @@ test("dado de baja pierde también los rondines al instante; sin sesión no lee 
   await assertFails(getDoc(doc(a, "rondines/t1_0")));
   const n = anon().firestore();
   for (const p of ["puntos/pA1", "programasRondin/siteA", "rondines/t1_0", "escaneos/t1_0_pA1", "ajustesRondin/aj1"]) await assertFails(getDoc(doc(n, p)));
+});
+
+// ---------------------------------------------------------------- Fase 5: incidencias, visitantes, bitácora
+test("guardia: lee solo el RESUMEN de SUS incidencias; nada de visitantes, novedades, seguimientos ni originales", async () => {
+  const db = guardia().firestore();
+  await assertSucceeds(getDoc(doc(db, "incidenciasResumen/i1")));
+  await assertSucceeds(getDocs(query(collection(db, "incidenciasResumen"), where("guardiaUid", "==", "g-G001"), orderBy("creadoMs"))));
+  await assertFails(getDoc(doc(db, "incidenciasResumen/i2")));
+  await assertFails(getDocs(query(collection(db, "incidenciasResumen"), where("guardiaUid", "==", "g-G002"))));
+  await assertFails(getDocs(collection(db, "incidenciasResumen")));
+  for (const p of ["incidencias/i1", "seguimientosIncidencia/s1", "visitantes/v1", "salidasVisitante/v1", "visitantesVista/v1", "novedades/n1"]) await assertFails(getDoc(doc(db, p)));
+  for (const c of ["incidencias", "visitantes", "visitantesVista", "novedades", "seguimientosIncidencia"]) await assertFails(getDocs(collection(db, c)));
+});
+
+test("guardia: no escribe incidencias, visitantes, novedades ni seguimientos (todo pasa por el Worker)", async () => {
+  const db = guardia().firestore();
+  for (const [p, d] of [["incidencias/nueva", { sitioId: "siteA", guardiaUid: "g-G001" }], ["visitantes/nuevo", { nombre: "X", sitioId: "siteA" }], ["novedades/nueva", { texto: "x", guardiaUid: "g-G001" }],
+    ["seguimientosIncidencia/nuevo", { incidenciaId: "i1" }], ["visitantesVista/v1", { dentro: false }], ["incidenciasResumen/i1", { estado: "cerrada" }], ["salidasVisitante/x", { visitanteId: "v1" }]])
+    await assertFails(setDoc(doc(db, p), d));
+  await assertFails(updateDoc(doc(db, "incidencias/i1"), { gravedad: "baja" }));
+  await assertFails(deleteDoc(doc(db, "novedades/n1")));
+});
+
+test("supervisor: resumen de incidencias y visitantes de SUS sitios; no los de otros; no los originales; no escribe", async () => {
+  const db = sup().firestore();
+  await assertSucceeds(getDoc(doc(db, "incidenciasResumen/i1")));
+  await assertSucceeds(getDoc(doc(db, "visitantesVista/v1")));
+  await assertSucceeds(getDocs(query(collection(db, "incidenciasResumen"), where("supervisorUid", "==", "sup1"), orderBy("creadoMs"))));
+  await assertSucceeds(getDocs(query(collection(db, "incidenciasResumen"), where("supervisorUid", "==", "sup1"), where("gravedad", "==", "alta"))));
+  await assertSucceeds(getDocs(query(collection(db, "visitantesVista"), where("supervisorUid", "==", "sup1"), where("dentro", "==", true))));
+  await assertSucceeds(getDocs(query(collection(db, "visitantesVista"), where("supervisorUid", "==", "sup1"), orderBy("entradaMs"))));
+  for (const p of ["incidenciasResumen/i2", "visitantesVista/v2"]) await assertFails(getDoc(doc(db, p)));
+  await assertFails(getDocs(collection(db, "incidenciasResumen")));
+  await assertFails(getDocs(collection(db, "visitantesVista")));
+  await assertFails(getDocs(query(collection(db, "visitantesVista"), where("supervisorUid", "==", "sup2"))));
+  for (const p of ["incidencias/i1", "seguimientosIncidencia/s1", "visitantes/v1", "salidasVisitante/v1", "novedades/n1"]) await assertFails(getDoc(doc(db, p))); // originales y fotos: solo admin / Worker
+  await assertFails(updateDoc(doc(db, "incidenciasResumen/i1"), { estado: "cerrada" }));
+  await assertFails(setDoc(doc(db, "seguimientosIncidencia/nuevo"), { incidenciaId: "i1", texto: "x" }));
+  const otro = sup("sup2").firestore();
+  await assertFails(getDoc(doc(otro, "incidenciasResumen/i1")));
+  await assertFails(getDoc(doc(otro, "visitantesVista/v1")));
+});
+
+test("admin: lee todo lo de la Fase 5 (incluido el catálogo); nada se escribe desde el cliente; inmutables", async () => {
+  const db = adm().firestore();
+  for (const p of ["incidencias/i1", "incidencias/i2", "incidenciasResumen/i1", "seguimientosIncidencia/s1", "visitantes/v1", "salidasVisitante/v1", "visitantesVista/v1", "novedades/n1", "configuracion/empresa"]) await assertSucceeds(getDoc(doc(db, p)));
+  await assertSucceeds(getDocs(collection(db, "incidenciasResumen")));
+  await assertFails(setDoc(doc(db, "incidencias/x"), { sitioId: "siteA" }));
+  await assertFails(updateDoc(doc(db, "incidencias/i1"), { descripcion: "editada" }));
+  await assertFails(deleteDoc(doc(db, "incidencias/i1")));
+  await assertFails(updateDoc(doc(db, "seguimientosIncidencia/s1"), { texto: "editado" }));
+  await assertFails(deleteDoc(doc(db, "visitantes/v1")));
+  await assertFails(updateDoc(doc(db, "novedades/n1"), { texto: "editada" }));
+  await assertFails(setDoc(doc(db, "configuracion/catalogos"), { tiposIncidencia: [] }));
+});
+
+test("sin sesión y dado de baja: nada de la Fase 5", async () => {
+  const n = anon().firestore();
+  for (const p of ["incidencias/i1", "incidenciasResumen/i1", "seguimientosIncidencia/s1", "visitantes/v1", "visitantesVista/v1", "salidasVisitante/v1", "novedades/n1", "configuracion/catalogos"]) await assertFails(getDoc(doc(n, p)));
+  const a = guardia().firestore();
+  await assertSucceeds(getDoc(doc(a, "incidenciasResumen/i1")));
+  await env.withSecurityRulesDisabled(async (c) => updateDoc(doc(c.firestore(), "usuarios/g-G001"), { activo: false }));
+  await assertFails(getDoc(doc(a, "incidenciasResumen/i1")));
 });
 
 test("guardia dado de baja pierde también marcas y asistencias al instante", async () => {
