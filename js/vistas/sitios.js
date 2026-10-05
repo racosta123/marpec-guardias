@@ -1,5 +1,6 @@
 // Sitios: el admin los crea y edita; el supervisor solo ve los suyos.
 import { collection, getDocs, query, where } from "../vendor/firebase.js";
+import { vistaPuntos } from "./puntos.js";
 import { accion, campo, confirmar, h, limpiar, modal, toast, poner } from "../ui.js";
 
 export async function cargarSitios({ db, user }) {
@@ -33,7 +34,8 @@ export async function vistaSitios(raiz, ctx) {
       s.consignas ? h("p", { class: "consignas" }, h("b", {}, "Consignas: "), s.consignas) : null,
       s.activo === false ? h("span", { class: "etq mal" }, "Inactivo") : null),
     h("div", { class: "item-acc" },
-      h("button", { class: "btn chico secundario", type: "button", onclick: () => verQr(s) }, "QR imprimible"),
+      h("button", { class: "btn chico secundario", type: "button", onclick: () => verQr(s) }, "QR de asistencia"),
+      h("button", { class: "btn chico primario", type: "button", onclick: () => vistaPuntos(raiz, ctx, s, recargar) }, "Puntos y rondín"),
       esAdmin ? h("button", { class: "btn chico secundario", type: "button", onclick: () => formSitio(s) }, "Editar") : null,
       esAdmin ? h("button", { class: "btn chico peligro", type: "button", onclick: () => regenerar(s) }, "Regenerar QR") : null));
 

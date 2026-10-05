@@ -59,3 +59,12 @@ El teléfono envía lat/lng/precisión; **el Worker** decide `dentroPerimetro` (
 - `configuracion/empresa` — añade ventanaEntradaMin, toleranciaRelevoMin y `limitesExtraPorAnio: [{anio, horasSemana}]`.
 - Selfies: R2 `selfies/{sitioId}/{turnoId}/{tipo}-{rand}.jpg` (bucket privado `marpec-guardias-selfies`).
 - Índices: asistencias por (guardiaUid | supervisorUid | sitioId) + inicioMs.
+
+## Implementación de la Fase 4 (campos reales)
+
+- `puntos/{id}` — sitioId, supervisorUid (denormalizado), nombre, descripcion, orden, qrVersion, lat|null, lng|null, precisionM, radioM (5–200, def. 30), activo, prueba?.
+- `programasRondin/{sitioId}` — modo (`ordenada`|`libre`), frecuencia (`{tipo:"cada_horas",cadaHoras}` o `{tipo:"horarios",horarios:["22:00",…]}`), toleranciaInicioMin (0–120), toleranciaFinMin (5–480), activo.
+- `rondines/{turnoId}_{indice}` — **resultado recalculable**: sitio, supervisorUid, guardia (uid y nombre), modo, fecha local, programadoMs/abreMs/cierraInicioMs/venceMs, `requeridos` (puntos congelados), estado, iniciadoMs/finalizadoMs, hechos/total/porcentaje, faltantes, saltados, siguientePuntoId, `detalle` por punto (hora, origen escaneo|ajuste, nota, hay foto, distancia).
+- `escaneos/{rondinId}_{puntoId}` — **inmutable**: turno, sitio, guardia, punto, `tsMs` (servidor) y `ts`, lat, lng, precisionM, distanciaM, nota, fotoKey (R2 `rondines/…`), horaDispositivoMs y desfase, prueba?.
+- `ajustesRondin/{id}` — **inmutable**: rondinId, tipo (`marcar_punto`|`justificar_rondin`), puntoId?, motivo, autorUid/autorNombre.
+- Índices: rondines por (guardiaUid | supervisorUid | sitioId) + programadoMs.

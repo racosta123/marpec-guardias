@@ -79,6 +79,37 @@ service cloud.firestore {
       allow create, update, delete: if false;
     }
 
+    // ---- Fase 4: rondines ----
+    // Puntos de control y programación: admin y supervisor del sitio (supervisorUid denormalizado).
+    // El guardia NO los lee: el Worker le entrega solo lo necesario de su rondín en curso.
+    match /puntos/{puntoId} {
+      allow get, list: if esAdmin() || (esSupervisor() && resource.data.supervisorUid == request.auth.uid);
+      allow create, update, delete: if false;
+    }
+    match /programasRondin/{sitioId} {
+      allow get, list: if esAdmin() || (esSupervisor() && resource.data.supervisorUid == request.auth.uid);
+      allow create, update, delete: if false;
+    }
+
+    // Resultado calculado de cada rondín (estado, puntos con su hora): admin, supervisor del sitio y su guardia.
+    match /rondines/{rondinId} {
+      allow get, list: if esAdmin()
+                       || (esSupervisor() && resource.data.supervisorUid == request.auth.uid)
+                       || (esGuardia() && resource.data.guardiaUid == request.auth.uid);
+      allow create, update, delete: if false;
+    }
+
+    // Escaneos (GPS, nota y ruta de la foto) y ajustes: inmutables. Los supervisores ven el detalle en 'rondines'
+    // y las fotos pasan SOLO por el Worker.
+    match /escaneos/{escaneoId} {
+      allow get, list: if esAdmin();
+      allow create, update, delete: if false;
+    }
+    match /ajustesRondin/{ajusteId} {
+      allow get, list: if esAdmin() || (esSupervisor() && resource.data.supervisorUid == request.auth.uid);
+      allow create, update, delete: if false;
+    }
+
     match /configuracion/{docId} {
       allow get: if esAdmin();
       allow list, create, update, delete: if false;

@@ -14,6 +14,7 @@ import { vistaEmpresa } from "./vistas/empresa.js";
 import { vistaBitacora } from "./vistas/bitacora.js";
 import { vistaAsistencia } from "./vistas/asistencia.js";
 import { vistaReportes } from "./vistas/reportes.js";
+import { vistaRondines } from "./vistas/rondines.js";
 
 const app = initializeApp(config.firebase);
 const auth = initializeAuth(app, { persistence: [indexedDBLocalPersistence, browserLocalPersistence] });
@@ -30,8 +31,8 @@ const ROLES = {
 
 // Secciones por rol. El supervisor solo ve turnos y sitios propios; el resto es del admin.
 const SECCIONES = {
-  supervisor: [["asistencia", "Asistencia", vistaAsistencia], ["turnos", "Turnos", vistaTurnos], ["sitios", "Mis sitios", vistaSitios]],
-  admin: [["asistencia", "Asistencia", vistaAsistencia], ["turnos", "Turnos", vistaTurnos], ["sitios", "Sitios", vistaSitios], ["personal", "Personal", vistaPersonal], ["reportes", "Reportes", vistaReportes], ["empresa", "Empresa", vistaEmpresa], ["bitacora", "Bitácora", vistaBitacora]],
+  supervisor: [["asistencia", "Asistencia", vistaAsistencia], ["rondines", "Rondines", vistaRondines], ["turnos", "Turnos", vistaTurnos], ["sitios", "Mis sitios", vistaSitios]],
+  admin: [["asistencia", "Asistencia", vistaAsistencia], ["rondines", "Rondines", vistaRondines], ["turnos", "Turnos", vistaTurnos], ["sitios", "Sitios", vistaSitios], ["personal", "Personal", vistaPersonal], ["reportes", "Reportes", vistaReportes], ["empresa", "Empresa", vistaEmpresa], ["bitacora", "Bitácora", vistaBitacora]],
 };
 
 async function montarApp(ctx) {

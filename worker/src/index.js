@@ -17,6 +17,9 @@ import { guardarConfig } from "./handlers/empresa.js";
 import { marcarEntrada, marcarSalida, notasRelevo, verSelfie } from "./handlers/marcas.js";
 import { autorizarCierre, crearAjuste, recalcular, reporte, resolverExtra } from "./handlers/asistenciaAdmin.js";
 import { recalcularVentana } from "./handlers/asistenciaSvc.js";
+import { actualizarPunto, crearPunto, guardarPrograma, obtenerQrPunto, obtenerQrSitioPuntos, regenerarQrPunto } from "./handlers/puntos.js";
+import { ajusteRondin, escanearPunto, proximoRondin, recalcularRondines, reporteRondines, verFotoRondin } from "./handlers/rondines.js";
+import { recalcularRondinesVentana } from "./handlers/rondinesSvc.js";
 
 export { RateLimiter };
 
@@ -199,6 +202,19 @@ const ROUTES = {
   "POST /extras/resolver": resolverExtra,
   "POST /asistencia/recalcular": recalcular,
   "GET /reportes/asistencia": reporte,
+  // Fase 4: rondines
+  "POST /admin/puntos": crearPunto,
+  "POST /admin/puntos/actualizar": actualizarPunto,
+  "POST /admin/puntos/regenerar-qr": regenerarQrPunto,
+  "GET /puntos/qr": obtenerQrPunto,
+  "GET /puntos/qr-sitio": obtenerQrSitioPuntos,
+  "POST /rondines/programa": guardarPrograma,
+  "GET /rondines/proximo": proximoRondin,
+  "POST /rondines/escanear": escanearPunto,
+  "GET /rondines/foto": verFotoRondin,
+  "POST /rondines/ajuste": ajusteRondin,
+  "POST /rondines/recalcular": recalcularRondines,
+  "GET /reportes/rondines": reporteRondines,
 };
 
 export default {
@@ -206,6 +222,7 @@ export default {
   async scheduled(_event, env, ctx) {
     const ahora = Date.now();
     ctx.waitUntil(recalcularVentana(env, ahora - 40 * 3600e3, ahora + 3600e3, { omitirCerrados: true, ahora }).catch((e) => console.error("cron", e?.message)));
+    ctx.waitUntil(recalcularRondinesVentana(env, ahora - 40 * 3600e3, ahora + 3600e3, { ahora, soloActivos: true }).catch((e) => console.error("cron rondines", e?.message)));
   },
 
   async fetch(request, env) {

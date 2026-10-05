@@ -86,3 +86,25 @@
 4. **Retención de selfies:** no hay borrado automático; la política de conservación debe definirla MARPEC (aviso de privacidad en borrador).
 5. **Costos/cuotas:** el cron (cada 5 min) y las lecturas de `get()` en reglas consumen cuota gratuita de Firestore; vigilar al crecer el número de turnos simultáneos.
 6. **jsQR 1.4.0** (Apache-2.0, sin dependencias, sin acceso a red) está vendorizada como lector de respaldo; su último release es de 2020. `npm audit`: 0 vulnerabilidades. En navegadores con `BarcodeDetector` no se usa.
+
+## Fase 4 — Rondines
+
+**QR de puntos:** formato `MPC2.<puntoId>.<versión>.<HMAC>`; el prefijo entra en el mensaje firmado (separación de dominios con el QR de asistencia `MPC1`). Un QR de asistencia no sirve como punto ni al revés, aunque se reescriba el prefijo. Cada punto tiene el suyo y «Regenerar» invalida el impreso. Solo el admin o el supervisor del sitio obtiene la firma; el guardia nunca.
+
+**Escaneo (Worker):** hora del servidor; exige guardia con **turno propio, programado, con entrada marcada y sin salida**; el punto debe ser activo, de **su sitio**, versión vigente y formar parte del rondín en curso (los puntos se congelan al abrirse la ventana del rondín). Si el punto tiene GPS: precisión ≤ radio y distancia ≤ radio (30 m por defecto). Ruta ordenada: solo el siguiente punto. Un escaneo por punto y rondín (`escaneos/{rondín}_{punto}` con precondición «no existe»). Foto y nota opcionales; la foto va al mismo bucket R2 privado (`rondines/…`) y solo la sirve el Worker al admin o al supervisor actual del sitio.
+
+**Estados (calculados por el Worker y por el cron de 5 min, recalculables, sin tocar los escaneos):** `programado` → `pendiente` (ventana abierta: programado ± tolerancia de inicio) → `no_iniciado` (pasó la tolerancia sin escanear nada) · `en_curso` → `completo` o `incompleto` (venció el plazo con puntos faltantes; los faltantes se listan como «puntos saltados») · `justificado` (ajuste) · `no_exigible` (el guardia nunca marcó entrada: ya es una falta de asistencia, no se duplica la alerta). Cumplimiento = completos / (completos + incompletos + no iniciados).
+
+**Horarios en America/Hermosillo:** los rondines `cada X horas` salen de la hora de inicio del turno; los horarios fijos se interpretan en hora local, también tras medianoche; cada rondín se asigna al día **local** de su hora programada.
+
+**Correcciones:** solo como `ajustesRondin` (marcar un punto como realizado, o justificar el rondín) con motivo obligatorio, nombre del autor y bitácora; el escaneo original nunca cambia.
+
+**Lecturas (reglas):** admin y supervisor del sitio leen `puntos`, `programasRondin`, `rondines` y `ajustesRondin`; el guardia lee solo **sus** `rondines`; `escaneos` (GPS y ruta de la foto) solo el admin; el guardia recibe de `GET /rondines/proximo` únicamente lo necesario de su rondín en curso. La baja de una persona corta estas lecturas al instante.
+
+**Exportación CSV:** con BOM UTF-8, escape de comas/comillas y neutralización de fórmulas (`=`, `+`, `-`, `@`).
+
+### Riesgos pendientes de la Fase 4
+1. **QR fotografiado:** un QR de punto impreso puede ser fotografiado y escaneado desde otro lugar. Se mitiga con el GPS del punto (opcional, recomendable) y la foto opcional; el rondín exige turno y entrada marcados.
+2. **Puntos sin GPS** dependen solo del QR firmado.
+3. **Cron:** cada ciclo recalcula solo los rondines con ventana activa; los rondines ya cerrados se consolidan al pasar su plazo. Los reportes de más de 2 días no fuerzan recálculo de rondines pasados.
+4. **Cambios de puntos a mitad de turno:** los rondines cuya ventana ya abrió conservan los puntos que tenían; los siguientes usan la lista nueva.

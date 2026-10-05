@@ -1,6 +1,6 @@
 # MARPEC Guardias
 
-PWA de control de guardias para MARPEC Seguridad Privada. **Fase 3 de 7:** acceso y roles (F1), sitios/personal/turnos (F2), entrada/salida/relevo y asistencia (F3).
+PWA de control de guardias para MARPEC Seguridad Privada. **Fase 4 de 7:** acceso y roles (F1), sitios/personal/turnos (F2), entrada/salida/relevo y asistencia (F3), rondines con QR por punto (F4).
 
 - `index.html`, `css/`, `js/`, `fonts/`, `sw.js`, `manifest.webmanifest` — frontend (HTML/CSS/JS vanilla, GitHub Pages).
 - `worker/` — Cloudflare Worker `marpec-guardias-proxy` (único punto de escritura y de asignación de roles).
@@ -15,6 +15,7 @@ npm run test:worker         # pruebas del Worker (sin red; Google simulado)
 npm run test:rules          # reglas con el emulador de Firebase (requiere Java)
 npm run audit               # npm audit + búsqueda de secretos (árbol y historial git)
 node tests/ui/fase3.cdp.mjs <url>   # interfaz de la Fase 3 en Chrome real (cámara/GPS simulados)
+node tests/ui/fase4.cdp.mjs <url>   # interfaz de rondines (Fase 4) en Chrome real
 node tools/serve.mjs        # servidor estático local en :5173
 ```
 

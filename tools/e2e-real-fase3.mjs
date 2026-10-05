@@ -103,7 +103,7 @@ await rej("rechazo: precisión peor que el radio", await marcar("entrada", TK.A,
 await rej("rechazo: QR alterado", await marcar("entrada", TK.A, t1, { qr: QR[1].replace(/.$/, QR[1].endsWith("A") ? "B" : "A") }), 400, "qr_invalido");
 await rej("rechazo: QR de otro sitio", await marcar("entrada", TK.A, t1, { qr: QR[2] }), 400, "qr_invalido");
 await rej("rechazo: foto que no es JPEG de cámara", await marcar("entrada", TK.A, t1, { foto: Buffer.from("a".repeat(3000)).toString("base64") }), 400, "foto_invalida");
-await rej("rechazo: foto enorme", await marcar("entrada", TK.A, t1, { foto: jpeg(200 * 1024).toString("base64") }), 400);
+{ const r = await marcar("entrada", TK.A, t1, { foto: jpeg(200 * 1024).toString("base64") }); check("rechazo: foto enorme (el cuerpo supera el límite)", r.status === 413 || r.status === 400, `${r.status} ${r.body?.error || ""}`); }
 await rej("rechazo: turno de OTRO guardia (no se marca por otro)", await marcar("entrada", TK.B, t1), 403);
 await rej("rechazo: sin turno activo / fuera de ventana (turno de mañana)", await marcar("entrada", TK.A, tManana), 409, "fuera_ventana");
 await rej("rechazo: supervisor no marca", await api("/marcas/entrada", { token: S1T, body: { turnoId: t1 } }), 403);

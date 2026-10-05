@@ -19,6 +19,33 @@ window.fetch = async (url, init = {}) => {
     return ok({ payload: `MPC1.${sid}.1.AAAAAAAAAAAAAAAAAAAAAA`, version: 1, sitio: { id: sid, nombre: store.sitios[sid]?.nombre || "Sitio", direccion: store.sitios[sid]?.direccion || "" } });
   }
   if (ruta === "/marcas/entrada" || ruta === "/marcas/salida") return ok({ ok: true, retardo: false, retardoMin: 0, estado: "en_turno" }, 201);
+  // ---- Fase 4 simulada ----
+  if (ruta === "/rondines/recalcular") return ok({ ok: true, rondines: 0 });
+  if (ruta === "/rondines/proximo") {
+    const ordenada = true;
+    const pts = [["p1", "Portón", 1, true], ["p2", "Bodega", 2, false], ["p3", "Azotea", 3, false]].map(([puntoId, nombre, orden, requiereGps]) => ({ puntoId, nombre, orden, descripcion: "", requiereGps, hecho: Boolean(window.__hechos?.[puntoId]), tsMs: window.__hechos?.[puntoId] || null }));
+    const hechos = pts.filter((x) => x.hecho).length;
+    const sig = ordenada ? pts.find((x) => !x.hecho)?.puntoId || null : null;
+    const ahoraMs = Date.now();
+    return ok({ hay: true, modo: "ordenada", proximoMs: ahoraMs + 2 * 3600e3,
+      rondines: [{ indice: 0, programadoMs: ahoraMs - 20 * 60e3, estado: hechos === 3 ? "completo" : hechos ? "en_curso" : "pendiente", hechos, total: 3 }, { indice: 1, programadoMs: ahoraMs + 2 * 3600e3, estado: "programado", hechos: 0, total: 3 }],
+      actual: hechos === 3 ? null : { indice: 0, programadoMs: ahoraMs - 20 * 60e3, venceMs: ahoraMs + 25 * 60e3, estado: hechos ? "en_curso" : "pendiente", hechos, total: 3, porcentaje: Math.round(hechos / 3 * 100), modo: "ordenada", siguientePuntoId: sig, puntos: pts } });
+  }
+  if (ruta === "/rondines/escanear") {
+    const pid = body.qr.split(".")[1];
+    window.__hechos = window.__hechos || {};
+    window.__hechos[pid] = Date.now();
+    const n = Object.keys(window.__hechos).length;
+    const nombres = { p1: "Portón", p2: "Bodega", p3: "Azotea" };
+    const sig = ["p1", "p2", "p3"].find((x) => !window.__hechos[x]);
+    return ok({ ok: true, tsMs: Date.now(), punto: nombres[pid], hechos: n, total: 3, estado: n === 3 ? "completo" : "en_curso", completo: n === 3, siguiente: sig ? nombres[sig] : null }, 201);
+  }
+  if (ruta === "/rondines/ajuste") return ok({ ok: true, estado: "completo" }, 201);
+  if (ruta === "/rondines/foto") return ok({ error: "simulado" }, 404);
+  if (ruta === "/rondines/programa") return ok({ ok: true });
+  if (ruta === "/admin/puntos" || ruta === "/admin/puntos/actualizar" || ruta === "/admin/puntos/regenerar-qr") return ok({ ok: true, id: "pNuevo", version: 2 }, 201);
+  if (ruta === "/puntos/qr-sitio") return ok({ sitio: { id: "siteA", nombre: "Plaza Norte" }, puntos: [{ id: "p1", nombre: "Portón", descripcion: "Entrada principal", orden: 1, version: 1, payload: "MPC2.p1.1.AAAAAAAAAAAAAAAAAAAAAA" }, { id: "p2", nombre: "Bodega", descripcion: "", orden: 2, version: 1, payload: "MPC2.p2.1.BBBBBBBBBBBBBBBBBBBBBB" }] });
+  if (ruta === "/reportes/rondines") return ok({ desde: "x", hasta: "y", filas: Object.entries(store.rondines).map(([id, r]) => ({ id, ...r })), porSitioDia: [], total: { exigibles: 3, completos: 1, porcentaje: 33.3 } });
   if (ruta === "/asistencia/recalcular") return ok({ ok: true, turnos: 0 });
   if (ruta === "/relevo/notas") return ok({ hay: true, de: "Gema Guardia", cerrado: true, notas: "Portón 2 con falla. Llaves en caseta.", turnoId: "t0" });
   if (ruta === "/selfies") return ok({ error: "simulado" }, 404);

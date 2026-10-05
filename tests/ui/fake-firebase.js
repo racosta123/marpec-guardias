@@ -57,6 +57,27 @@ store.asistencias = {
     estado: "relevo_no_llego", entradaMs: store.turnos.t3.inicioMs, salidaMs: null, retardo: false, falta: false, minutosExtra: 45, extraEstado: "pendiente", extraEnCurso: true, relevoAlerta: true, relevoRequerido: true, relevoLlegado: false, fotoEntrada: true, ajustes: 0 },
 };
 
+// Con ?entrada=1 el guardia ya marcó entrada (para probar rondines)
+if (p.get("entrada")) Object.assign(store.asistencias.t5, { estado: "en_turno", entradaMs: ahora - 10 * 60e3, ventanaEntradaDesdeMs: ahora - 40 * 60e3 });
+store.turnos.t5.inicioMs = p.get("entrada") ? ahora - 10 * 60e3 : store.turnos.t5.inicioMs;
+store.asistencias.t5.inicioMs = store.turnos.t5.inicioMs;
+
+// Fase 4: puntos, programa y rondines simulados
+store.puntos = {
+  p1: { sitioId: "siteA", supervisorUid: "sup1", nombre: "Portón", descripcion: "Entrada principal", orden: 1, qrVersion: 1, lat: 29.0729, lng: -110.9559, radioM: 30, activo: true },
+  p2: { sitioId: "siteA", supervisorUid: "sup1", nombre: "Bodega", descripcion: "", orden: 2, qrVersion: 1, lat: null, lng: null, radioM: 30, activo: true },
+  p3: { sitioId: "siteA", supervisorUid: "sup1", nombre: "Azotea", descripcion: "Escalera norte", orden: 3, qrVersion: 1, lat: null, lng: null, radioM: 30, activo: false },
+};
+store.programasRondin = { siteA: { sitioId: "siteA", supervisorUid: "sup1", modo: "ordenada", frecuencia: { tipo: "cada_horas", cadaHoras: 2 }, toleranciaInicioMin: 15, toleranciaFinMin: 45, activo: true } };
+const rd = (id, indice, estado, hechos, extra = {}) => ({ rondinId: id, turnoId: "t1", indice, sitioId: "siteA", sitioNombre: "Plaza Norte", supervisorUid: "sup1", guardiaUid: "g-G001", guardiaNombre: "Gael Guardia", modo: "ordenada",
+  fecha: dia(ahora), programadoMs: ahora - (3 - indice) * 3600e3, estado, hechos, total: 3, porcentaje: Math.round((hechos / 3) * 100), faltantes: [], saltados: [], justificadoPor: null,
+  detalle: [{ puntoId: "p1", nombre: "Portón", orden: 1, hecho: hechos > 0, tsMs: ahora - 3 * 3600e3, origen: "escaneo", nota: "Candado flojo", foto: hechos > 0, distanciaM: 8 }, { puntoId: "p2", nombre: "Bodega", orden: 2, hecho: hechos > 1, tsMs: ahora - 3 * 3600e3 + 240000, origen: "escaneo" }, { puntoId: "p3", nombre: "Azotea", orden: 3, hecho: hechos > 2, tsMs: ahora - 3 * 3600e3 + 480000, origen: "escaneo" }], ...extra });
+store.rondines = {
+  t1_0: rd("t1_0", 0, "completo", 3),
+  t1_1: rd("t1_1", 1, "incompleto", 1, { faltantes: [{ puntoId: "p2", nombre: "Bodega" }, { puntoId: "p3", nombre: "Azotea" }], saltados: ["Bodega", "Azotea"] }),
+  t1_2: rd("t1_2", 2, "no_iniciado", 0),
+};
+
 // ---- API mínima compatible con lo que importan las vistas ----
 export const initializeApp = () => ({});
 export const getFirestore = () => ({ __db: true });

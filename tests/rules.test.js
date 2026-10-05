@@ -45,6 +45,14 @@ beforeEach(async () => {
     await put("asistencias/t2", { turnoId: "t2", sitioId: "siteB", supervisorUid: "sup2", guardiaUid: "g-G002", inicioMs: T, estado: "falta" });
     await put("ajustesAsistencia/a1", { turnoId: "t1", supervisorUid: "sup1", guardiaUid: "g-G001", tipo: "entrada", motivo: "x" });
     await put("autorizaciones/t1_cierre", { tipo: "cierre", turnoId: "t1", supervisorUid: "sup1", guardiaUid: "g-G001", motivo: "x" });
+    await put("puntos/pA1", { sitioId: "siteA", supervisorUid: "sup1", nombre: "Portón", orden: 1, qrVersion: 1, lat: 29.07, lng: -110.95, radioM: 30, activo: true });
+    await put("puntos/pB1", { sitioId: "siteB", supervisorUid: "sup2", nombre: "Caseta", orden: 1, qrVersion: 1, radioM: 30, activo: true });
+    await put("programasRondin/siteA", { sitioId: "siteA", supervisorUid: "sup1", modo: "libre", activo: true });
+    await put("programasRondin/siteB", { sitioId: "siteB", supervisorUid: "sup2", modo: "libre", activo: true });
+    await put("rondines/t1_0", { rondinId: "t1_0", turnoId: "t1", sitioId: "siteA", supervisorUid: "sup1", guardiaUid: "g-G001", programadoMs: T, estado: "no_iniciado" });
+    await put("rondines/t2_0", { rondinId: "t2_0", turnoId: "t2", sitioId: "siteB", supervisorUid: "sup2", guardiaUid: "g-G002", programadoMs: T, estado: "completo" });
+    await put("escaneos/t1_0_pA1", { rondinId: "t1_0", sitioId: "siteA", guardiaUid: "g-G001", puntoId: "pA1", tsMs: T, lat: 29.07, lng: -110.95, fotoKey: "rondines/siteA/t1/0/pA1-x.jpg" });
+    await put("ajustesRondin/aj1", { rondinId: "t1_0", supervisorUid: "sup1", guardiaUid: "g-G001", tipo: "justificar_rondin", motivo: "x" });
     await put("configuracion/empresa", { toleranciaRetardoMin: 10, limiteFaltaMin: 30, retardosPorFalta: 3 });
     await put("auditoria/e1", { actorUid: "adm1", accion: "sitio.alta", objetivo: "siteA" });
   });
@@ -295,6 +303,74 @@ test("admin: lee todo lo de asistencia; nadie escribe desde el cliente (marcas, 
   await assertFails(setDoc(doc(db, "ajustesAsistencia/x"), { tipo: "entrada" }));
   await assertFails(updateDoc(doc(db, "ajustesAsistencia/a1"), { motivo: "otro" }));
   await assertFails(deleteDoc(doc(db, "autorizaciones/t1_cierre")));
+});
+
+// ---------------------------------------------------------------- Fase 4: rondines
+test("guardia: lee SUS rondines; NO los de otro sitio, ni puntos, programas, escaneos ni ajustes", async () => {
+  const db = guardia().firestore();
+  await assertSucceeds(getDoc(doc(db, "rondines/t1_0")));
+  await assertSucceeds(getDocs(query(collection(db, "rondines"), where("guardiaUid", "==", "g-G001"), orderBy("programadoMs"))));
+  await assertFails(getDoc(doc(db, "rondines/t2_0")));
+  await assertFails(getDocs(query(collection(db, "rondines"), where("guardiaUid", "==", "g-G002"))));
+  await assertFails(getDocs(collection(db, "rondines")));
+  for (const p of ["puntos/pA1", "puntos/pB1", "programasRondin/siteA", "escaneos/t1_0_pA1", "ajustesRondin/aj1"]) await assertFails(getDoc(doc(db, p)));
+  for (const c of ["puntos", "escaneos", "programasRondin", "ajustesRondin"]) await assertFails(getDocs(collection(db, c)));
+});
+
+test("guardia: no escribe puntos, programas, rondines, escaneos ni ajustes", async () => {
+  const db = guardia().firestore();
+  await assertFails(setDoc(doc(db, "escaneos/t1_0_pA1"), { tsMs: 1 }));
+  await assertFails(setDoc(doc(db, "escaneos/falso"), { guardiaUid: "g-G001", puntoId: "pA1" }));
+  await assertFails(updateDoc(doc(db, "rondines/t1_0"), { estado: "completo" }));
+  await assertFails(setDoc(doc(db, "rondines/nuevo"), { guardiaUid: "g-G001", estado: "completo" }));
+  await assertFails(setDoc(doc(db, "puntos/mio"), { sitioId: "siteA", nombre: "Falso" }));
+  await assertFails(updateDoc(doc(db, "puntos/pA1"), { activo: false }));
+  await assertFails(updateDoc(doc(db, "programasRondin/siteA"), { modo: "ordenada" }));
+  await assertFails(deleteDoc(doc(db, "rondines/t1_0")));
+});
+
+test("supervisor: ve puntos, programa, rondines y ajustes de SUS sitios; no los de otros ni escaneos; no escribe", async () => {
+  const db = sup().firestore();
+  await assertSucceeds(getDoc(doc(db, "puntos/pA1")));
+  await assertSucceeds(getDoc(doc(db, "programasRondin/siteA")));
+  await assertSucceeds(getDoc(doc(db, "rondines/t1_0")));
+  await assertSucceeds(getDoc(doc(db, "ajustesRondin/aj1")));
+  await assertSucceeds(getDocs(query(collection(db, "puntos"), where("supervisorUid", "==", "sup1"))));
+  await assertSucceeds(getDocs(query(collection(db, "rondines"), where("supervisorUid", "==", "sup1"), orderBy("programadoMs"))));
+  await assertSucceeds(getDocs(query(collection(db, "rondines"), where("supervisorUid", "==", "sup1"), where("estado", "==", "no_iniciado"))));
+  for (const p of ["puntos/pB1", "programasRondin/siteB", "rondines/t2_0"]) await assertFails(getDoc(doc(db, p)));
+  await assertFails(getDocs(collection(db, "rondines")));
+  await assertFails(getDocs(query(collection(db, "rondines"), where("supervisorUid", "==", "sup2"))));
+  await assertFails(getDoc(doc(db, "escaneos/t1_0_pA1"))); // GPS y ruta de la foto: solo admin; fotos vía Worker
+  await assertFails(updateDoc(doc(db, "rondines/t1_0"), { estado: "completo" }));
+  await assertFails(setDoc(doc(db, "puntos/nuevo"), { sitioId: "siteA", supervisorUid: "sup1" }));
+  await assertFails(updateDoc(doc(db, "puntos/pA1"), { nombre: "Hack" }));
+  await assertFails(setDoc(doc(db, "ajustesRondin/falso"), { tipo: "marcar_punto" }));
+  const otro = sup("sup2").firestore();
+  await assertFails(getDoc(doc(otro, "puntos/pA1")));
+  await assertFails(getDoc(doc(otro, "rondines/t1_0")));
+  await assertFails(getDoc(doc(otro, "ajustesRondin/aj1")));
+});
+
+test("admin: lee todo lo de rondines; nada se escribe desde el cliente (escaneos y ajustes inmutables)", async () => {
+  const db = adm().firestore();
+  for (const p of ["puntos/pA1", "puntos/pB1", "programasRondin/siteA", "rondines/t1_0", "rondines/t2_0", "escaneos/t1_0_pA1", "ajustesRondin/aj1"]) await assertSucceeds(getDoc(doc(db, p)));
+  await assertSucceeds(getDocs(collection(db, "rondines")));
+  await assertFails(setDoc(doc(db, "escaneos/x"), { tsMs: 1 }));
+  await assertFails(updateDoc(doc(db, "escaneos/t1_0_pA1"), { tsMs: 1 }));
+  await assertFails(deleteDoc(doc(db, "escaneos/t1_0_pA1")));
+  await assertFails(updateDoc(doc(db, "ajustesRondin/aj1"), { motivo: "otro" }));
+  await assertFails(setDoc(doc(db, "puntos/nuevo"), { nombre: "x" }));
+  await assertFails(updateDoc(doc(db, "rondines/t1_0"), { estado: "completo" }));
+});
+
+test("dado de baja pierde también los rondines al instante; sin sesión no lee nada de rondines", async () => {
+  const a = guardia().firestore();
+  await assertSucceeds(getDoc(doc(a, "rondines/t1_0")));
+  await env.withSecurityRulesDisabled(async (c) => updateDoc(doc(c.firestore(), "usuarios/g-G001"), { activo: false }));
+  await assertFails(getDoc(doc(a, "rondines/t1_0")));
+  const n = anon().firestore();
+  for (const p of ["puntos/pA1", "programasRondin/siteA", "rondines/t1_0", "escaneos/t1_0_pA1", "ajustesRondin/aj1"]) await assertFails(getDoc(doc(n, p)));
 });
 
 test("guardia dado de baja pierde también marcas y asistencias al instante", async () => {

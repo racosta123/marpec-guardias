@@ -4,7 +4,7 @@ import { hora, hoy, sumarDias } from "../tz.js";
 import { cargarSitios } from "./sitios.js";
 
 // Neutraliza fórmulas de hoja de cálculo (=, +, -, @) y escapa comillas.
-const celda = (v) => {
+export const celda = (v) => {
   let s = v === null || v === undefined ? "" : String(v);
   if (/^[=+\-@\t\r]/.test(s)) s = `'${s}`;
   return /[",\n\r;]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;

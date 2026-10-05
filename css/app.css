@@ -250,3 +250,39 @@ hr { border: 0; border-top: 1px solid var(--line); margin: 14px 0; }
 .tabla th, .tabla td { padding: 8px 10px; text-align: left; border-bottom: 1px solid var(--line); white-space: nowrap; }
 .tabla th { background: var(--navy); color: #fff; position: sticky; top: 0; }
 .fila-mal td { background: #fbeae6; font-weight: 700; color: #7d210a; }
+
+/* ---- Fase 4: rondines ---- */
+.progreso { width: 100%; height: 16px; border-radius: 8px; overflow: hidden; accent-color: var(--amber); }
+.progreso::-webkit-progress-bar { background: var(--line); border-radius: 8px; }
+.progreso::-webkit-progress-value { background: var(--amber); border-radius: 8px; }
+.progreso::-moz-progress-bar { background: var(--amber); border-radius: 8px; }
+.titulo-seccion { margin: 0 0 6px; color: var(--navy); text-transform: uppercase; font-size: 1.1rem; }
+.chips-rondin { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+.puntos-lista, .puntos-detalle { list-style: none; margin: 10px 0 0; padding: 0; display: grid; gap: 4px; }
+.puntos-lista li { display: flex; align-items: center; gap: 10px; padding: 8px 10px; border-radius: 8px; background: var(--surface); }
+.puntos-lista li.hecho { background: #dff3e4; color: #17612e; }
+.puntos-lista li.siguiente { outline: 3px solid var(--amber); }
+.punto-marca { font-weight: 700; min-width: 1.4em; text-align: center; }
+.punto-txt { flex: 1; font-weight: 600; }
+.puntos-detalle li { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; font-size: .92rem; }
+.puntos-detalle li.hecho span:first-child { color: #17612e; font-weight: 600; }
+.puntos-detalle li.falta span:first-child { color: #7d210a; font-weight: 600; }
+.sin-espejo { transform: none; }
+.cumpl { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 10px; }
+.cumpl-item { background: var(--surface); border-radius: 12px; padding: 12px 14px; display: grid; gap: 2px; box-shadow: 0 1px 6px rgba(20,32,74,.07); }
+.cumpl-pct { font-family: "Barlow Condensed", sans-serif; font-weight: 700; font-size: 2.4rem; line-height: 1.1; color: var(--navy); }
+.cumpl-pct.ok { color: #17612e; }
+.cumpl-pct.medio { color: #9a6b00; }
+.cumpl-pct.mal { color: var(--panic); }
+
+/* Hoja imprimible de QR de puntos */
+.puntos-hoja { max-width: 900px; margin: 0 auto; padding: 18px; }
+#lista { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 18px; }
+.punto-tarjeta { border: 2px solid var(--navy); border-radius: 14px; padding: 14px; text-align: center; break-inside: avoid; page-break-inside: avoid; background: #fff; }
+.punto-logo { width: 54px; height: auto; }
+.punto-sitio { margin: 2px 0 0; color: var(--muted); font-weight: 600; text-transform: uppercase; font-size: .85rem; letter-spacing: .06em; }
+.punto-nombre { color: var(--navy); font-size: 1.8rem; text-transform: uppercase; margin: 2px 0; }
+.punto-desc { color: var(--muted); margin: 0 0 6px; }
+.punto-qr svg { width: 100%; max-width: 280px; height: auto; display: block; margin: 6px auto; }
+.punto-pie { color: var(--muted); font-size: .78rem; margin: 4px 0 0; }
+@media print { #lista { grid-template-columns: 1fr 1fr; gap: 12px; } .punto-tarjeta { padding: 8px; } .punto-qr svg { max-width: 8cm; } }

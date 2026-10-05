@@ -106,7 +106,7 @@ try {
   // ---------------- SUPERVISOR: panel de asistencia ----------------
   await ir("/index.html?rol=supervisor");
   const tabs = await ev("[...document.querySelectorAll('.tab-app')].map((b) => b.textContent).join(',')");
-  check("supervisor: pestañas Asistencia, Turnos y Mis sitios", tabs === "Asistencia,Turnos,Mis sitios", tabs);
+  check("supervisor: pestañas Asistencia, Rondines, Turnos y Mis sitios", tabs === "Asistencia,Rondines,Turnos,Mis sitios", tabs);
   const panel = await texto("#contenido");
   check("supervisor: alerta «Relevo no llegó» con botón de autorizar cierre", /Relevo no llegó/i.test(panel) && /Autorizar cierre sin relevo/i.test(panel));
   check("supervisor: horas extra por autorizar", /Horas extra por autorizar/i.test(panel) && /Autorizar/i.test(panel));

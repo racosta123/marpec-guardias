@@ -24,15 +24,18 @@ async function consulta(coleccion) {
 const usuarios = await consulta("usuarios");
 const marcas = await consulta("marcas");
 const credenciales = [...(await consulta("credenciales")), ...(await consulta("sitios")), ...(await consulta("turnos")), ...marcas,
-  ...(await consulta("asistencias")), ...(await consulta("ajustesAsistencia")), ...(await consulta("autorizaciones"))];
+  ...(await consulta("asistencias")), ...(await consulta("ajustesAsistencia")), ...(await consulta("autorizaciones")),
+  ...(await consulta("puntos")), ...(await consulta("programasRondin")), ...(await consulta("rondines")), ...(await consulta("ajustesRondin"))];
+const escaneos = await consulta("escaneos");
+credenciales.push(...escaneos);
 const uids = usuarios.map((d) => d.name.split("/").pop());
-console.log(`Usuarios de prueba: ${usuarios.length}, credenciales/sitios/turnos/marcas/asistencias/ajustes/autorizaciones de prueba: ${credenciales.length}`);
+console.log(`Usuarios de prueba: ${usuarios.length}, credenciales/sitios/turnos/marcas/asistencias/ajustes/autorizaciones/puntos/rondines/escaneos de prueba: ${credenciales.length}`);
 for (const d of usuarios) console.log(" -", d.fields.rol?.stringValue, d.fields.nombre?.stringValue);
 if (!aplicar) { console.log("\n(simulación) Ejecuta con --aplicar para borrar."); process.exit(0); }
 
 // Selfies de prueba en R2 (bucket privado)
 let fotos = 0;
-for (const m of marcas) {
+for (const m of [...marcas, ...escaneos]) {
   const k = m.fields.fotoKey?.stringValue;
   if (!k) continue;
   try { execSync(`wrangler r2 object delete marpec-guardias-selfies/${k} --remote`, { cwd: "worker", stdio: "pipe" }); fotos++; } catch { console.log(`  no se pudo borrar la foto ${k}`); }

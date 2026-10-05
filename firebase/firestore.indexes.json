@@ -5,7 +5,10 @@
     { "collectionGroup": "turnos", "queryScope": "COLLECTION", "fields": [ { "fieldPath": "sitioId", "order": "ASCENDING" }, { "fieldPath": "inicioMs", "order": "ASCENDING" } ] },
     { "collectionGroup": "asistencias", "queryScope": "COLLECTION", "fields": [ { "fieldPath": "guardiaUid", "order": "ASCENDING" }, { "fieldPath": "inicioMs", "order": "ASCENDING" } ] },
     { "collectionGroup": "asistencias", "queryScope": "COLLECTION", "fields": [ { "fieldPath": "supervisorUid", "order": "ASCENDING" }, { "fieldPath": "inicioMs", "order": "ASCENDING" } ] },
-    { "collectionGroup": "asistencias", "queryScope": "COLLECTION", "fields": [ { "fieldPath": "sitioId", "order": "ASCENDING" }, { "fieldPath": "inicioMs", "order": "ASCENDING" } ] }
+    { "collectionGroup": "asistencias", "queryScope": "COLLECTION", "fields": [ { "fieldPath": "sitioId", "order": "ASCENDING" }, { "fieldPath": "inicioMs", "order": "ASCENDING" } ] },
+    { "collectionGroup": "rondines", "queryScope": "COLLECTION", "fields": [ { "fieldPath": "guardiaUid", "order": "ASCENDING" }, { "fieldPath": "programadoMs", "order": "ASCENDING" } ] },
+    { "collectionGroup": "rondines", "queryScope": "COLLECTION", "fields": [ { "fieldPath": "supervisorUid", "order": "ASCENDING" }, { "fieldPath": "programadoMs", "order": "ASCENDING" } ] },
+    { "collectionGroup": "rondines", "queryScope": "COLLECTION", "fields": [ { "fieldPath": "sitioId", "order": "ASCENDING" }, { "fieldPath": "programadoMs", "order": "ASCENDING" } ] }
   ],
   "fieldOverrides": []
 }

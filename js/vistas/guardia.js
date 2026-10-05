@@ -3,6 +3,7 @@ import { collection, doc, getDoc, getDocs, orderBy, query, where } from "../vend
 import { h, limpiar, poner } from "../ui.js";
 import { diaLargo, duracionH, hora } from "../tz.js";
 import { abrirMarcado } from "./marcar.js";
+import { abrirRondin } from "./rondin.js";
 
 const H = 3600e3;
 
@@ -70,9 +71,28 @@ export async function vistaGuardia(raiz, ctx) {
       ayuda ? h("p", { class: "ayuda-relevo" }, ayuda) : null,
       boton,
       h("div", { class: "consignas-caja" }, h("h4", {}, "Consignas del puesto"), h("p", {}, consignas || "Sin consignas registradas."))),
+    h("div", { id: "rondines-card" }),
     h("div", { id: "notas-relevo" }),
     listaSiguientes(siguientes),
     h("p", { class: "ayuda" }, "Horario de Hermosillo (UTC-7, sin horario de verano). Para marcar se usa tu ubicación solo en ese momento."));
+
+  // Rondines (solo con entrada marcada y turno abierto)
+  if (entradaMs && !salidaMs) {
+    try {
+      const r = await api(`/rondines/proximo?turnoId=${encodeURIComponent(t.id)}`, { method: "GET" });
+      const dest = raiz.querySelector("#rondines-card");
+      if (r.hay && dest) {
+        const ESTADO = { completo: ["✔ Completo", "ok"], incompleto: ["Incompleto", "mal"], no_iniciado: ["No iniciado", "mal"], en_curso: ["En curso", "info"], pendiente: ["Por iniciar", "info"], programado: ["Programado", "info"], justificado: ["Justificado", "info"], no_exigible: ["—", "info"] };
+        const a = r.actual;
+        poner(dest, h("section", { class: "tarjeta" }, h("h4", { class: "titulo-seccion" }, "Rondines"),
+          a ? [h("p", {}, h("b", {}, `Rondín de las ${hora(a.programadoMs)}`), ` · ${a.hechos} de ${a.total} puntos · plazo ${hora(a.venceMs)}`),
+            h("progress", { class: "progreso", max: a.total, value: a.hechos, "aria-label": "Progreso del rondín" }),
+            h("button", { class: "btn primario grande", type: "button", onclick: () => abrirRondin({ turno: t, api, alTerminar: recargar }) }, a.hechos > 0 ? "CONTINUAR RONDÍN" : "INICIAR RONDÍN")]
+            : h("p", { class: "sub" }, r.proximoMs ? `No hay un rondín en este momento. Próximo: ${hora(r.proximoMs)}.` : "No hay más rondines programados en tu turno."),
+          h("div", { class: "chips-rondin" }, r.rondines.map((x) => { const [txt, c] = ESTADO[x.estado] || [x.estado, "info"]; return h("span", { class: `etq ${c}` }, `${hora(x.programadoMs)} · ${txt}`); }))));
+      }
+    } catch { /* sin conexión o sin programa */ }
+  }
 
   // Notas de entrega de quien me releva (si las hay)
   if (!salidaMs) {
