@@ -1,7 +1,7 @@
 // Prueba del botón de instalación con Chrome real (CDP, sin dependencias; Node >= 22).
 // Uso: node tests/ui/instalar.cdp.mjs <urlLogin> <urlInicioSimulado>
 //   <urlLogin>: la app (pantalla de login). <urlInicioSimulado>: servida con tools/serve.mjs --fake (?rol=guardia).
-import { spawn } from "node:child_process";
+import { spawn, spawnSync } from "node:child_process";
 import { existsSync, mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -112,6 +112,7 @@ try {
   sock.close();
   process.exitCode = fallos ? 1 : 0;
 } finally {
+  try { spawnSync("taskkill", ["/pid", String(proc.pid), "/T", "/F"], { stdio: "ignore" }); } catch { /* ya terminó */ } // mata también los procesos hijos de Chrome
   proc.kill();
   await espera(500);
   try { rmSync(perfil, { recursive: true, force: true }); } catch { /* perfil en uso */ }

@@ -1,6 +1,6 @@
 // Prueba de la interfaz de la Fase 5 con Chrome real (cámara y GPS simulados por Chrome).
 // Uso: node tests/ui/fase5.cdp.mjs http://localhost:5182   (servidor: node tools/serve.mjs 5182 --fake)
-import { spawn } from "node:child_process";
+import { spawn, spawnSync } from "node:child_process";
 import { existsSync, mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -35,9 +35,18 @@ try {
   const ev = async (expr) => (await cmd("Runtime.evaluate", { expression: expr, awaitPromise: true, returnByValue: true })).result?.result?.value;
   await cmd("Page.enable");
   await cmd("Runtime.enable");
+  // Reloj del navegador fijado alrededor de las 12:00 (Hermosillo) de HOY: las pruebas no dependen de la hora del día
+  // (los datos simulados son relativos a «ahora» y a la fecha local; cerca de la medianoche cambiaban de día).
+  await cmd("Page.addScriptToEvaluateOnNewDocument", { source: `(() => { const R = Date.now.bind(Date); const h = new Date(R() - 7 * 3600e3); const off = Date.UTC(h.getUTCFullYear(), h.getUTCMonth(), h.getUTCDate(), 12, 0) + 7 * 3600e3 - R(); const D = Date; globalThis.Date = class extends D { constructor(...a) { if (a.length) super(...a); else super(R() + off); } static now() { return R() + off; } }; })();` });
   await cmd("Browser.grantPermissions", { permissions: ["geolocation", "videoCapture"], origin: new URL(base).origin });
   await cmd("Emulation.setGeolocationOverride", { latitude: 29.0729, longitude: -110.9559, accuracy: 8 });
-  const ir = async (u, ms = 3500) => { await cmd("Page.navigate", { url: `${base}${u}` }); await espera(ms); };
+  const ir = async (u, ms = 3500) => {
+    await cmd("Page.navigate", { url: `${base}${u}` });
+    // el primer arranque de Chrome puede tardar varios segundos: se espera a que la app salga de «Cargando…»
+    const fin = Date.now() + 20000;
+    while (Date.now() < fin) { await espera(250); if (await ev("(() => { const c = document.getElementById('cargando'); return Boolean(c) && c.hidden; })()")) break; }
+    await espera(ms);
+  };
   const texto = (sel) => ev(`(document.querySelector(${JSON.stringify(sel)}) || {}).innerText || ""`);
   const conTexto = async (sel, re, ms = 8000) => { const fin = Date.now() + ms; let t = ""; do { t = await texto(sel); if (re.test(t)) return t; await espera(250); } while (Date.now() < fin); return t; };
   const clic = (re, sel = "button") => ev(`(() => { const b = [...document.querySelectorAll(${JSON.stringify(sel)})].find((x) => ${re}.test(x.textContent) && !x.hidden && !x.disabled); if (b) b.click(); return Boolean(b); })()`);
@@ -45,7 +54,7 @@ try {
 
   // ---------------- GUARDIA ----------------
   await ir("/index.html?rol=guardia&entrada=1");
-  const home = await texto("#contenido");
+  const home = await conTexto("#contenido", /Bitácora/i, 15000);
   check("guardia con entrada: «Libro del turno» con Novedad, Incidencia, Visitantes y Bitácora", /Libro del turno/i.test(home) && /Novedad/i.test(home) && /Incidencia/i.test(home) && /Visitantes/i.test(home) && /Bitácora/i.test(home));
   check("al cambio de turno el entrante ve quién sigue dentro (turno anterior)", /Del turno anterior siguen dentro: Pedro Sigue Dentro/i.test(await conTexto("#contenido", /Pedro Sigue Dentro/i)));
   check("el botón de visitantes muestra cuántos hay dentro", /1 dentro/i.test(await conTexto("#contenido", /1 dentro/i)));
@@ -102,7 +111,7 @@ try {
   check("bitácora: línea de tiempo del turno y bitácora del turno anterior", /Entrada al turno/i.test(bt) && /bombilla/i.test(bt) && /Incidencia \(alta\)/i.test(bt) && /Portón 2 con falla/i.test(bt) && /Siguen dentro del sitio: Pedro Sigue Dentro/i.test(bt));
 
   // ---------------- SUPERVISOR ----------------
-  await ir("/index.html?rol=supervisor");
+  await ir("/index.html?rol=supervisor&entrada=1"); // con entrada=1 el turno de prueba empieza HOY (sin depender de la hora del día)
   const tabs = await ev("[...document.querySelectorAll('.tab-app')].map((b) => b.textContent).join(',')");
   check("supervisor: pestañas Incidencias, Visitantes y Bitácoras", /Incidencias/.test(tabs) && /Visitantes/.test(tabs) && /Bitácoras/.test(tabs), tabs);
   await ev("document.querySelector('[data-clave=incidencias]').click()");
@@ -158,6 +167,7 @@ try {
   sock.close();
   process.exitCode = fallos ? 1 : 0;
 } finally {
+  try { spawnSync("taskkill", ["/pid", String(proc.pid), "/T", "/F"], { stdio: "ignore" }); } catch { /* ya terminó */ } // mata también los procesos hijos de Chrome
   proc.kill();
   await espera(500);
   try { rmSync(perfil, { recursive: true, force: true }); } catch { /* perfil en uso */ }

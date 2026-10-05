@@ -1,6 +1,6 @@
 // Prueba de la interfaz de la Fase 3 con Chrome real (cámara y GPS simulados por Chrome; sin dependencias).
 // Uso: node tests/ui/fase3.cdp.mjs http://localhost:5182   (servidor: node tools/serve.mjs 5182 --fake)
-import { spawn } from "node:child_process";
+import { spawn, spawnSync } from "node:child_process";
 import { existsSync, mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -36,8 +36,17 @@ try {
   const ev = async (expr) => (await cmd("Runtime.evaluate", { expression: expr, awaitPromise: true, returnByValue: true })).result?.result?.value;
   await cmd("Page.enable");
   await cmd("Runtime.enable");
+  // Reloj del navegador fijado alrededor de las 12:00 (Hermosillo) de HOY: las pruebas no dependen de la hora del día
+  // (los datos simulados son relativos a «ahora» y a la fecha local; cerca de la medianoche cambiaban de día).
+  await cmd("Page.addScriptToEvaluateOnNewDocument", { source: `(() => { const R = Date.now.bind(Date); const h = new Date(R() - 7 * 3600e3); const off = Date.UTC(h.getUTCFullYear(), h.getUTCMonth(), h.getUTCDate(), 12, 0) + 7 * 3600e3 - R(); const D = Date; globalThis.Date = class extends D { constructor(...a) { if (a.length) super(...a); else super(R() + off); } static now() { return R() + off; } }; })();` });
   await cmd("Browser.grantPermissions", { permissions: ["geolocation", "videoCapture"], origin: new URL(base).origin });
-  const ir = async (u, ms = 3500) => { await cmd("Page.navigate", { url: `${base}${u}` }); await espera(ms); };
+  const ir = async (u, ms = 3500) => {
+    await cmd("Page.navigate", { url: `${base}${u}` });
+    // el primer arranque de Chrome puede tardar varios segundos: se espera a que la app salga de «Cargando…»
+    const fin = Date.now() + 20000;
+    while (Date.now() < fin) { await espera(250); if (await ev("(() => { const c = document.getElementById('cargando'); return Boolean(c) && c.hidden; })()")) break; }
+    await espera(ms);
+  };
   const texto = (sel) => ev(`(document.querySelector(${JSON.stringify(sel)}) || {}).innerText || ""`);
 
   // ---------------- GUARDIA: estado, botón grande, notas del relevo, asistente ----------------
@@ -150,6 +159,7 @@ try {
   sock.close();
   process.exitCode = fallos ? 1 : 0;
 } finally {
+  try { spawnSync("taskkill", ["/pid", String(proc.pid), "/T", "/F"], { stdio: "ignore" }); } catch { /* ya terminó */ } // mata también los procesos hijos de Chrome
   proc.kill();
   await espera(500);
   try { rmSync(perfil, { recursive: true, force: true }); } catch { /* perfil en uso */ }

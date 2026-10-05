@@ -70,7 +70,7 @@ store.puntos = {
 };
 store.programasRondin = { siteA: { sitioId: "siteA", supervisorUid: "sup1", modo: "ordenada", frecuencia: { tipo: "cada_horas", cadaHoras: 2 }, toleranciaInicioMin: 15, toleranciaFinMin: 45, activo: true } };
 const rd = (id, indice, estado, hechos, extra = {}) => ({ rondinId: id, turnoId: "t1", indice, sitioId: "siteA", sitioNombre: "Plaza Norte", supervisorUid: "sup1", guardiaUid: "g-G001", guardiaNombre: "Gael Guardia", modo: "ordenada",
-  fecha: dia(ahora), programadoMs: ahora - (3 - indice) * 3600e3, estado, hechos, total: 3, porcentaje: Math.round((hechos / 3) * 100), faltantes: [], saltados: [], justificadoPor: null,
+  fecha: dia(ahora), programadoMs: Math.max(ahora - (3 - indice) * 3600e3, Date.parse(dia(ahora) + "T00:00:00Z") + 7 * 3600e3 + (indice + 1) * 60e3), estado, hechos, total: 3, porcentaje: Math.round((hechos / 3) * 100), faltantes: [], saltados: [], justificadoPor: null,
   detalle: [{ puntoId: "p1", nombre: "Portón", orden: 1, hecho: hechos > 0, tsMs: ahora - 3 * 3600e3, origen: "escaneo", nota: "Candado flojo", foto: hechos > 0, distanciaM: 8 }, { puntoId: "p2", nombre: "Bodega", orden: 2, hecho: hechos > 1, tsMs: ahora - 3 * 3600e3 + 240000, origen: "escaneo" }, { puntoId: "p3", nombre: "Azotea", orden: 3, hecho: hechos > 2, tsMs: ahora - 3 * 3600e3 + 480000, origen: "escaneo" }], ...extra });
 store.rondines = {
   t1_0: rd("t1_0", 0, "completo", 3),
