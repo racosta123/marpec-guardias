@@ -68,12 +68,13 @@ writeFileSync(join(salida, "_headers"), `/*
 `);
 
 // 4) Revisión de la copia: nada de git, de GitHub ni de secretos.
-const prohibido = [/racosta123/i, /github\.io/i, /github\.com/i, /BEGIN [A-Z ]*PRIVATE KEY/, /service[_-]?account/i, /ghp_[A-Za-z0-9]{20,}/, /\.env/];
+// (Los créditos de licencias de librerías de terceros mencionan github.com: no son rastro del repositorio del proyecto.)
+const prohibido = [/racosta123/i, /[a-z0-9-]+\.github\.io/i, /BEGIN [A-Z ]*PRIVATE KEY/, /service[_-]?account/i, /ghp_[A-Za-z0-9]{20,}/, /AKIA[0-9A-Z]{16}/];
 const hallazgos = [];
 (function recorrer(d) {
   for (const n of readdirSync(d)) {
     const p = join(d, n);
-    if (n === ".git" || n === "node_modules") hallazgos.push(`${p}: carpeta prohibida`);
+    if (n === ".git" || n === "node_modules" || n === ".netlify" || /^\.env/.test(n)) hallazgos.push(`${p}: archivo o carpeta prohibido`);
     else if (statSync(p).isDirectory()) recorrer(p);
     else if (/\.(html|js|css|webmanifest|txt|json|md)$|^_headers$/.test(n)) {
       const t = readFileSync(p, "utf8");
