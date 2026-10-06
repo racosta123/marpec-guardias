@@ -8,7 +8,7 @@ import { b64u, b64uToBytes } from "./crypto.js";
 import { commit, deleteDocument, getDocument, runQuery } from "./google.js";
 
 const te = new TextEncoder();
-export const EVENTOS_PUSH = ["panico", "incidencia_alta", "relevo", "rondin"];
+export const EVENTOS_PUSH = ["panico", "incidencia_alta", "relevo", "rondin", "licencia"];
 export const EVENTOS_CONFIGURABLES = ["incidencia_alta", "relevo", "rondin"]; // el pánico siempre se envía
 
 // Solo servicios push de navegadores reales: el Worker nunca llama a una URL arbitraria que envíe un usuario.
@@ -35,7 +35,7 @@ export function clavePublica(env) {
 async function cabeceraVapid(env, endpoint) {
   const j = JSON.parse(env.VAPID_PRIVATE_JWK);
   const key = await crypto.subtle.importKey("jwk", { kty: "EC", crv: "P-256", x: j.x, y: j.y, d: j.d, ext: true }, { name: "ECDSA", namedCurve: "P-256" }, false, ["sign"]);
-  const cuerpo = `${b64u(te.encode(JSON.stringify({ typ: "JWT", alg: "ES256" })))}.${b64u(te.encode(JSON.stringify({ aud: new URL(endpoint).origin, exp: Math.floor(Date.now() / 1000) + 12 * 3600, sub: env.ALLOWED_ORIGIN || "https://example.invalid" })))}`;
+  const cuerpo = `${b64u(te.encode(JSON.stringify({ typ: "JWT", alg: "ES256" })))}.${b64u(te.encode(JSON.stringify({ aud: new URL(endpoint).origin, exp: Math.floor(Date.now() / 1000) + 12 * 3600, sub: String(env.ALLOWED_ORIGIN || "").split(",")[0].trim() || "https://example.invalid" })))}`;
   const firma = await crypto.subtle.sign({ name: "ECDSA", hash: "SHA-256" }, key, te.encode(cuerpo)); // WebCrypto devuelve r||s (ES256)
   return `vapid t=${cuerpo}.${b64u(firma)}, k=${clavePublica(env)}`;
 }
@@ -98,11 +98,11 @@ async function destinatarios(env, evento, sitio) {
 }
 
 // Envía la alerta a quien corresponde. Nunca lanza: una falla de push no debe tumbar el registro que la originó.
-export async function notificar(env, { evento, sitio, sitioId, prueba = false }) {
+export async function notificar(env, { evento, sitio, sitioId, prueba = false, extra }) {
   try {
     if (!EVENTOS_PUSH.includes(evento) || !vapidConfigurado(env)) return { enviados: 0 };
     const s = sitio || (sitioId ? await getDocument(env, `sitios/${sitioId}`) : null);
-    const payload = JSON.stringify({ t: evento, sitio: String(s?.nombre || "").slice(0, 80), ...(prueba ? { prueba: true } : {}), ts: Date.now() });
+    const payload = JSON.stringify({ t: evento, sitio: String(s?.nombre || "").slice(0, 80), ...(prueba ? { prueba: true } : {}), ...(extra || {}), ts: Date.now() });
     const subs = await destinatarios(env, evento, s);
     let enviados = 0;
     await Promise.all(subs.map(async (sub) => {

@@ -27,6 +27,7 @@ import { atenderPanico, crearPanico } from "./handlers/panico.js";
 import { bajaPush, claveVapid, estadoPush, guardarPrefsPush, suscribirPush } from "./handlers/notificaciones.js";
 import { revisarOffline } from "./handlers/offlineRev.js";
 import { Duplicado } from "./offline.js";
+import { avisarVencimiento, estadoPublico, exigirLicencia, leerLicencia, vencida } from "./licencia.js";
 
 export { RateLimiter };
 
@@ -52,8 +53,11 @@ const SECURITY_HEADERS = {
   "permissions-policy": "geolocation=(), camera=(), microphone=()",
 };
 
+// ALLOWED_ORIGIN admite varios orígenes EXACTOS separados por coma (p. ej. GitHub Pages y Netlify). Nada de comodines.
+const origenPermitido = (env, origin) => !!origin && String(env.ALLOWED_ORIGIN || "").split(",").map((o) => o.trim()).filter(Boolean).includes(origin);
+
 function corsHeaders(env, origin) {
-  if (origin && origin === env.ALLOWED_ORIGIN) {
+  if (origenPermitido(env, origin)) {
     return {
       "access-control-allow-origin": origin,
       "access-control-allow-methods": "GET, POST, OPTIONS",
@@ -177,7 +181,10 @@ async function primerAdmin(env, request) {
   return { status: 201, body: { ok: true, uid } };
 }
 
+const RUTA_LICENCIA = "GET /licencia/estado"; // única ruta que responde con la licencia vencida
+
 const ROUTES = {
+  [RUTA_LICENCIA]: estadoPublico,
   "POST /auth/guardia": loginGuardia,
   "GET /me": me,
   "POST /setup/primer-admin": primerAdmin,
@@ -251,8 +258,13 @@ export default {
   // Cron: refresca asistencia de turnos recientes (alertas de relevo y extras en curso).
   async scheduled(_event, env, ctx) {
     const ahora = Date.now();
-    ctx.waitUntil(recalcularVentana(env, ahora - 40 * 3600e3, ahora + 3600e3, { omitirCerrados: true, ahora }).catch((e) => console.error("cron", e?.message)));
+    // Licencia de demostración: vencida (o ausente) el cron no genera alertas ni notificaciones sobre datos del cliente.
+    const lic = await leerLicencia(env, ahora).catch((e) => { console.error("cron licencia", e?.message); return undefined; });
+    // La retención de visitantes (privacidad) sigue corriendo siempre: no genera alertas.
     ctx.waitUntil(purgarVisitantes(env, ahora).catch((e) => console.error("cron retención", e?.message)));
+    if (lic === undefined || vencida(lic, ahora)) return;
+    ctx.waitUntil(avisarVencimiento(env, lic, ahora).catch((e) => console.error("cron aviso licencia", e?.message)));
+    ctx.waitUntil(recalcularVentana(env, ahora - 40 * 3600e3, ahora + 3600e3, { omitirCerrados: true, ahora }).catch((e) => console.error("cron", e?.message)));
     ctx.waitUntil(recalcularRondinesVentana(env, ahora - 40 * 3600e3, ahora + 3600e3, { ahora, soloActivos: true }).catch((e) => console.error("cron rondines", e?.message)));
   },
 
@@ -261,17 +273,18 @@ export default {
     const origin = request.headers.get("origin");
 
     if (request.method === "OPTIONS") {
-      if (origin !== env.ALLOWED_ORIGIN) return respond(env, request, 403, null);
+      if (!origenPermitido(env, origin)) return respond(env, request, 403, null);
       return respond(env, request, 204, null);
     }
     // Navegadores: cualquier otro origen queda fuera aunque tenga credenciales válidas.
-    if (origin && origin !== env.ALLOWED_ORIGIN)
+    if (origin && !origenPermitido(env, origin))
       return respond(env, request, 403, { error: "forbidden" });
 
     const handler = ROUTES[`${request.method} ${url.pathname}`];
     if (!handler) return respond(env, request, 404, { error: "not_found" });
 
     try {
+      if (`${request.method} ${url.pathname}` !== RUTA_LICENCIA) await exigirLicencia(env); // demo vencido: 403 "demo_vencido"
       const r = await handler(env, request);
       if (r.binary) {
         return new Response(r.binary.body, { status: r.status, headers: { ...SECURITY_HEADERS, ...corsHeaders(env, request.headers.get("origin")), "content-type": r.binary.contentType, "cache-control": "private, no-store" } });

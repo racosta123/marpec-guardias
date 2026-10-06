@@ -39,6 +39,7 @@ export function crearApi(auth) {
     }
     sincronizarReloj(Number(res.headers.get("x-server-time"))); // desfase del reloj del celular para los registros sin conexión
     const data = await res.json().catch(() => ({}));
+    if (res.status === 403 && data.error === "demo_vencido") window.dispatchEvent(new Event("demo-vencido")); // app.js muestra la pantalla de demo concluida
     if (!res.ok) throw Object.assign(new Error(data.mensaje || MENSAJES[data.error] || "No se pudo completar la acción."), { status: res.status, code: data.error });
     return data;
   }

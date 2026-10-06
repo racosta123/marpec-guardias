@@ -342,6 +342,24 @@ try {
   const fs = await conTexto(".modal", /Teléfono de emergencia del sitio/i);
   check("sitios: campo «Teléfono de emergencia del sitio» editable", /Teléfono de emergencia del sitio/.test(fs) && (await ev("[...document.querySelectorAll('.modal input[type=tel]')].some((i) => i.value === '662 123 4567')")) === true);
 
+  // =============================================================== LICENCIA DE DEMOSTRACIÓN
+  const banner = () => ev("(() => { const b = document.getElementById('banner-licencia'); return b.hidden ? '' : b.innerText; })()");
+  await ir("/index.html?rol=admin&lic=d5", 2500);
+  check("demo (quedan 5 días): admin ve el banner fijo con la fecha y Diagonal Catorce", /Periodo de demostración próximo a vencer: vence el 4 de noviembre de 2026\. Para continuar, contacta a Diagonal Catorce\./.test(await banner()), await banner());
+  check("demo: el banner es fijo (sticky) arriba de la app", (await ev("getComputedStyle(document.getElementById('banner-licencia')).position")) === "sticky");
+  await ir("/index.html?rol=supervisor&lic=d10", 2500);
+  check("demo (quedan 10 días): el supervisor también ve el banner", /próximo a vencer/.test(await banner()));
+  await ir("/index.html?rol=supervisor&lic=d11", 2500);
+  check("demo (quedan 11 días): todavía no hay banner", (await banner()) === "");
+  await ir("/index.html?rol=guardia&lic=d5", 2500);
+  check("demo: el guardia NO ve el banner", (await banner()) === "" && (await ev("!document.getElementById('vista-inicio').hidden")) === true);
+  await ir("/index.html?rol=admin", 2500);
+  check("modo producción: sin banner", (await banner()) === "");
+  for (const rol of ["admin", "supervisor", "guardia"]) {
+    await ir(`/index.html?rol=${rol}&lic=vencida`, 2500);
+    check(`demo vencida (${rol}): pantalla «Periodo de demostración concluido…», sin app ni botón de pánico`, /Periodo de demostración concluido\. Para continuar usando MARPEC Guardias, contacta a Diagonal Catorce\./.test(await texto("#vista-demo")) && (await ev("document.getElementById('vista-inicio').hidden && document.getElementById('vista-login').hidden && !document.getElementById('btn-panico') && !document.getElementById('alertas-panico')")) === true);
+  }
+
   check("sin excepciones de JavaScript durante toda la prueba", errores.length === 0, errores.slice(0, 2).join(" | "));
   console.log(fallos ? `\n${fallos} PRUEBA(S) FALLARON` : "\nTODAS LAS PRUEBAS DE INTERFAZ (FASE 6) PASARON");
   sock.close();

@@ -10,10 +10,19 @@ service cloud.firestore {
     function conSesion() {
       return request.auth != null && request.auth.token.rol in ['guardia', 'supervisor', 'admin'];
     }
+    // Licencia de demostración (config/licencia, que SOLO escribe el operador técnico con tools/licencia.mjs; ningún
+    // cliente puede escribirla: cae en la regla de denegar todo). Toda lectura exige licencia vigente: en modo demo,
+    // request.time < vence (también corta los listeners en vivo al vencer); en modo producción no hay vencimiento.
+    // Sin documento de licencia no se lee nada.
+    function licenciaVigente() {
+      let l = /databases/$(database)/documents/config/licencia;
+      return exists(l) && (get(l).data.get('modo', 'demo') == 'produccion' || request.time < get(l).data.vence);
+    }
     // Cuenta ACTIVA: el perfil existe, está activo y su rol coincide con el claim del token.
     // Así, dar de baja a alguien corta sus lecturas AL INSTANTE aunque su ID token siga vigente.
     function activo() {
       return conSesion()
+        && licenciaVigente()
         && exists(perfilPath(request.auth.uid))
         && get(perfilPath(request.auth.uid)).data.activo == true
         && get(perfilPath(request.auth.uid)).data.rol == request.auth.token.rol;

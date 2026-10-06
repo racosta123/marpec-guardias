@@ -3,6 +3,7 @@
 import { b64u, signJwt } from "../src/crypto.js";
 import { RateLimiter } from "../src/ratelimit.js";
 import { resetCaches } from "../src/google.js";
+import { resetLicencia } from "../src/licencia.js";
 
 export const PROJECT = "marpec-test";
 export const ORIGIN = "https://racosta123.github.io";
@@ -141,6 +142,11 @@ export async function createWorld() {
   };
 
   resetCaches();
+  resetLicencia();
+  // Por defecto el mundo de pruebas está en modo producción (sin vencimiento); licencia.test.js usa modo demo.
+  docs.set(`projects/${PROJECT}/databases/(default)/documents/config/licencia`, {
+    modo: { stringValue: "produccion" }, inicio: { timestampValue: "2026-01-01T07:00:00.000Z" }, vence: { timestampValue: "2999-01-01T06:59:59.999Z" },
+  });
   world.restore = () => { globalThis.fetch = realFetch; };
   world.env = env;
   world.saPublic = sa.publicKey;

@@ -17,6 +17,7 @@ beforeEach(async () => {
   await env.clearFirestore();
   await env.withSecurityRulesDisabled(async (ctx) => {
     const put = (p, d) => setDoc(doc(ctx.firestore(), p), d);
+    await put("config/licencia", { modo: "produccion" }); // sin licencia las reglas no dejan leer nada (ver rules-licencia.test.js)
     await put("usuarios/g-G001", { nombre: "Gael", rol: "guardia", activo: true, sitiosAsignados: ["siteA"] });
     await put("usuarios/g-G002", { nombre: "Gema", rol: "guardia", activo: true, sitiosAsignados: ["siteB"] });
     await put("usuarios/sup1", { nombre: "Sara", rol: "supervisor", activo: true });

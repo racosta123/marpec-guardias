@@ -25,6 +25,7 @@ import { vistaRondines } from "./vistas/rondines.js";
 import { vistaIncidencias } from "./vistas/incidencias.js";
 import { vistaVisitantes } from "./vistas/visitantes.js";
 import { vistaBitacoras } from "./vistas/bitacoras.js";
+import { debeAvisar, estadoLicencia, textoBanner } from "./licencia.js";
 
 const app = initializeApp(config.firebase);
 const auth = initializeAuth(app, { persistence: [indexedDBLocalPersistence, browserLocalPersistence] });
@@ -32,7 +33,7 @@ const db = getFirestore(app);
 const api = crearApi(auth);
 
 const $ = (id) => document.getElementById(id);
-const vistas = { login: $("vista-login"), inicio: $("vista-inicio") };
+const vistas = { login: $("vista-login"), inicio: $("vista-inicio"), demo: $("vista-demo") };
 const ROLES = {
   guardia: { etiqueta: "Guardia", titulo: "MARPEC · Guardia" },
   supervisor: { etiqueta: "Supervisor", titulo: "MARPEC · Supervisión" },
@@ -47,7 +48,9 @@ const SECCIONES = {
 
 // Sesión activa: para cerrarla limpiamente (cola local, botón de pánico, alertas).
 let rolActual = null;
+let limpiezaVista = null; // una vista en tiempo real devuelve la función que cancela sus listeners
 function detenerSesion() {
+  if (limpiezaVista) { limpiezaVista(); limpiezaVista = null; }
   detenerEnvio(); desmontarPanico(); detenerAlertasPanico();
   const b = $("barra-sync");
   if (b) { b.hidden = true; limpiar(b); }
@@ -56,6 +59,7 @@ function detenerSesion() {
 async function montarApp(ctx) {
   const raiz = $("contenido");
   rolActual = ctx.user.rol;
+  aplicarLicencia(); // banner de "próximo a vencer" para admin y supervisores
   if (ctx.user.rol === "guardia") {
     // Modo sin internet: cola local + envío automático + indicador + botón de pánico en todas las pantallas
     iniciarEnvio({ api: ctx.api, uid: ctx.user.uid });
@@ -68,7 +72,6 @@ async function montarApp(ctx) {
   const secciones = SECCIONES[ctx.user.rol];
   nav.hidden = !secciones;
   limpiar(nav);
-  let limpiezaVista = null; // una vista en tiempo real devuelve la función que cancela sus listeners
   const abrir = async (clave) => {
     for (const b of nav.children) b.setAttribute("aria-current", String(b.dataset.clave === clave));
     const s = secciones.find((x) => x[0] === clave);
@@ -86,9 +89,29 @@ async function montarApp(ctx) {
 }
 
 function mostrar(nombre) {
+  if (licencia?.vencido) nombre = "demo"; // demo concluida: la pantalla reemplaza al login y a la app
   $("cargando").hidden = true;
   for (const [k, el] of Object.entries(vistas)) el.hidden = k !== nombre;
 }
+
+// ---- Licencia de demostración ----
+// El Worker (403 "demo_vencido") y las reglas de Firestore son la barrera real; aquí solo se avisa y se muestra la pantalla.
+let licencia = null; // último estado conocido (null = no se pudo consultar: no se bloquea nada)
+function aplicarLicencia() {
+  const banner = $("banner-licencia");
+  if (licencia?.vencido) { detenerSesion(); banner.hidden = true; mostrar("demo"); return; }
+  const ver = debeAvisar(licencia, rolActual);
+  banner.hidden = !ver;
+  if (ver) banner.textContent = textoBanner(licencia);
+}
+async function revisarLicencia() {
+  const e = await estadoLicencia();
+  if (e) { licencia = e; aplicarLicencia(); }
+}
+const licenciaLista = revisarLicencia();
+setInterval(revisarLicencia, 5 * 60 * 1000);
+document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") revisarLicencia(); });
+window.addEventListener("demo-vencido", () => { licencia = { modo: "demo", vencido: true }; aplicarLicencia(); }); // lo emite api.js ante un 403 demo_vencido
 
 function error(msg) {
   const el = $("login-error");
@@ -133,6 +156,10 @@ $("form-guardia").addEventListener("submit", async (e) => {
       cache: "no-store",
       referrerPolicy: "no-referrer",
     });
+    if (res.status === 403) { // ¿demo concluida? (el Worker responde 403 "demo_vencido"; cualquier otro 403 sigue siendo error genérico)
+      const j = await res.json().catch(() => ({}));
+      if (j.error === "demo_vencido") { window.dispatchEvent(new Event("demo-vencido")); return; }
+    }
     if (!res.ok) {
       error("Número de empleado o PIN incorrectos, o acceso bloqueado temporalmente.");
       return;
@@ -187,6 +214,8 @@ $("btn-salir").addEventListener("click", async () => {
 
 // ---- Estado de sesión ----
 onAuthStateChanged(auth, async (user) => {
+  await licenciaLista;
+  if (licencia?.vencido) { detenerSesion(); mostrar("demo"); return; } // los datos se conservan; solo se detiene el uso
   if (!user) {
     detenerSesion();
     await vaciarTodo(); // sin sesión no queda nada de la cola local
@@ -221,6 +250,7 @@ onAuthStateChanged(auth, async (user) => {
     await montarApp({ db, api, auth, user: { uid: user.uid, rol, nombre } });
   } catch {
     // No se pudo validar y tampoco hay copia: se queda en el login SIN cerrar la sesión (se reintenta al reabrir).
+    await revisarLicencia(); // si la causa es la demo concluida (reglas de Firestore), se muestra su pantalla
     mostrar("login");
     error("No fue posible validar tu acceso. Revisa tu conexión e intenta de nuevo.");
   }

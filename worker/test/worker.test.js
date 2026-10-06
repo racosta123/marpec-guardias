@@ -86,11 +86,25 @@ test("bloqueo tras 5 intentos fallidos durante 15 min (incluso con PIN correcto)
   assert.equal((await login("G001", "4821", "10.0.1.3")).status, 200, "pasados 15 min vuelve a funcionar");
 });
 
+test("ALLOWED_ORIGIN admite varios orígenes EXACTOS (GitHub Pages y Netlify); ningún otro", async () => {
+  env.ALLOWED_ORIGIN = `${ORIGIN}, https://marpec-guardias.netlify.app`;
+  for (const o of [ORIGIN, "https://marpec-guardias.netlify.app"]) {
+    const r = await call(worker, env, "GET", "/licencia/estado", { origin: o });
+    assert.equal(r.status, 200, o);
+    assert.equal(r.headers.get("access-control-allow-origin"), o);
+    assert.equal((await call(worker, env, "OPTIONS", "/me", { origin: o })).status, 204);
+  }
+  for (const o of ["https://marpec-guardias.netlify.app.evil.com", "https://otro.netlify.app", "http://marpec-guardias.netlify.app", "https://netlify.app"]) {
+    assert.equal((await call(worker, env, "GET", "/licencia/estado", { origin: o })).status, 403, o);
+    assert.equal((await call(worker, env, "OPTIONS", "/me", { origin: o })).status, 403, o);
+  }
+});
+
 test("un número inexistente también se bloquea (no revela existencia)", async () => {
   for (let i = 0; i < 5; i++) await login("FANTASMA", "1111", `11.0.0.${i}`);
   const r = await login("FANTASMA", "1111", "11.0.9.9");
   assert.equal(r.status, 401);
-  assert.equal(w.docs.size, 0);
+  assert.equal([...w.docs.keys()].filter((k) => !k.endsWith("/config/licencia")).length, 0); // no se creó nada (salvo la licencia sembrada)
 });
 
 test("límite por IP: 20 fallos desde una IP la bloquean para cualquier empleado", async () => {

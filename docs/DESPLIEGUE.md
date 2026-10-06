@@ -93,3 +93,13 @@ Se reclama de forma atómica: la segunda llamada responde `404` para siempre. De
 6. Verificación en real: `node tools/e2e-real-fase6.mjs <uid-admin>`.
 7. Cada supervisor/admin activa sus notificaciones en la pestaña «Alertas» (en iPhone, con la app instalada). Capturar el **teléfono de emergencia** de cada sitio (Sitios → Editar).
 8. Antes de entregar a MARPEC: `node tools/borrar-pruebas.mjs --aplicar` (ahora también borra pánico, registros sin conexión, revisiones, suscripciones y marcas `pushEnviados` de prueba).
+
+## Licencia de demostración (30 días)
+
+`config/licencia { modo: "demo" | "produccion", inicio, vence }` la escribe SOLO el operador con `tools/licencia.mjs` (las reglas de Firestore niegan toda escritura de clientes y el Worker no tiene ninguna ruta que la toque). Fechas en hora de Hermosillo; la demo vence al **final** del día de vencimiento (23:59:59.999).
+
+- `node tools/licencia.mjs iniciar [--dias 30] [--desde AAAA-MM-DD]` — vence al final del día (desde + N); por omisión `desde` = hoy.
+- `node tools/licencia.mjs extender --dias N | --hasta AAAA-MM-DD` · `node tools/licencia.mjs produccion` (sin vencimiento) · `node tools/licencia.mjs estado`.
+- Vencida (o sin documento de licencia): el Worker responde **403 `demo_vencido`** en todo menos `GET /licencia/estado` (público y mínimo), las reglas de Firestore niegan toda lectura (también corta los listeners en vivo) y el cron deja de generar alertas y notificaciones (la retención de visitantes sigue). **Los datos no se borran.**
+- Aviso: de 10 días antes en adelante, banner fijo para admin y supervisores; el día en que faltan 10 días, un push al admin (una sola vez).
+- **Orden de despliegue (importante):** 1) crear la licencia (`iniciar`), 2) desplegar reglas, 3) desplegar Worker, 4) frontend. Sin documento de licencia el servicio queda cerrado.

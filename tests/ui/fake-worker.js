@@ -20,6 +20,11 @@ window.fetch = async (url, init = {}) => {
   const body = init.body ? JSON.parse(init.body) : {};
   if (window.__offline) { window.__fallidas = (window.__fallidas || 0) + 1; throw new TypeError("Failed to fetch"); }
   window.__llamadas.push({ ruta, body });
+  // Licencia de demostración simulada con ?lic=d5 (demo, quedan 5 días) · ?lic=d30 · ?lic=vencida; sin ?lic= es modo producción.
+  const lic = new URLSearchParams(location.search).get("lic");
+  const estadoLic = !lic ? { modo: "produccion", vencido: false } : lic === "vencida" ? { modo: "demo", vencido: true, diasRestantes: 0 } : { modo: "demo", vencido: false, diasRestantes: Number(lic.slice(1)), venceDia: "2026-11-04" };
+  if (ruta === "/licencia/estado") return ok(estadoLic);
+  if (estadoLic.vencido) return ok({ error: "demo_vencido", mensaje: "Periodo de demostración concluido. Para continuar usando MARPEC Guardias, contacta a Diagonal Catorce." }, 403);
   // Fase 6: rechazo simulado de un registro (para probar los «rechazados» de la cola)
   if (window.__rechazar && window.__rechazar.includes(ruta)) return ok({ error: "qr_invalido", mensaje: "El código QR no es válido para este puesto." }, 400);
   if (window.__duplicados && body.sync?.clientId) { window.__vistos = window.__vistos || new Set(); if (window.__vistos.has(body.sync.clientId)) return ok({ ok: true, duplicado: true }); window.__vistos.add(body.sync.clientId); }

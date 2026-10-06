@@ -6,7 +6,7 @@ workers_dev = true
 # Variables NO sensibles (públicas por diseño).
 [vars]
 FIREBASE_PROJECT_ID = "marpec-guardias"
-ALLOWED_ORIGIN = "https://racosta123.github.io"
+ALLOWED_ORIGIN = "https://racosta123.github.io,https://marpec-guardias.netlify.app"
 
 # Secrets (NUNCA aquí; se cargan con `wrangler secret put`):
 #   SERVICE_ACCOUNT_JSON  - JSON completo de la cuenta de servicio de Firebase
