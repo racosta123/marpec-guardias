@@ -251,6 +251,10 @@ try {
   let vivo = await texto("#contenido");
   check("en vivo: «Plaza Norte» cubierto con el guardia y desde qué hora", /Plaza Norte/.test(vivo) && /Cubierto/i.test(await texto(".vivo-puesto")) && /Gael Guardia/.test(vivo), vivo.replace(/\n+/g, " ").slice(0, 120));
   check("en vivo: NO aparece nada del sitio de otro supervisor (ni su alerta de pánico)", !/Bodega Sur/.test(vivo) && !/Gema/.test(vivo) && (await ev("window.__escuchasRechazadas || 0")) === 0 && (await ev("document.getElementById('alertas-panico').hidden")) === true);
+  check("en vivo: «En rondín» muestra el cumplimiento de hoy, o «Sin rondines programados» si no hay", /Sin rondines programados/.test(vivo), vivo.replace(/\n+/g, " ").slice(0, 160));
+  await ev("(() => { const hoy = new Date(Date.now() - 7 * 3600e3).toISOString().slice(0, 10); window.__store.rondines = { a: { fecha: hoy, turnoId: 'tx', sitioId: 'siteA', supervisorUid: 'sup1', programadoMs: Date.now() - 7200e3, venceMs: Date.now() - 3600e3, estado: 'completo' }, b: { fecha: hoy, turnoId: 'tx', sitioId: 'siteA', supervisorUid: 'sup1', programadoMs: Date.now() - 5400e3, venceMs: Date.now() - 1800e3, estado: 'no_iniciado' }, c: { fecha: hoy, turnoId: 'tx', sitioId: 'siteA', supervisorUid: 'sup1', programadoMs: Date.now() - 3600e3, venceMs: Date.now() - 600e3, estado: 'completo' } }; window.__tick(); })()");
+  await espera(500);
+  check("en vivo: con 2 de 3 rondines exigibles completos, el cumplimiento de hoy es 66.7% (el mismo cálculo de la sección Rondines)", /Cumplimiento hoy 66\.7%/.test(await texto("#contenido")));
   await sembrar(false);
   await espera(500);
   check("en vivo: al dejar de estar el guardia el puesto pasa solo a «Descubierto»", /Descubierto/i.test(await texto(".vivo-puesto")) && /Turno vigente sin guardia/i.test(await texto("#contenido")));

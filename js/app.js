@@ -26,6 +26,7 @@ import { vistaIncidencias } from "./vistas/incidencias.js";
 import { vistaVisitantes } from "./vistas/visitantes.js";
 import { vistaBitacoras } from "./vistas/bitacoras.js";
 import { debeAvisar, estadoLicencia, textoBanner } from "./licencia.js";
+import { icono } from "./iconos.js";
 
 const app = initializeApp(config.firebase);
 const auth = initializeAuth(app, { persistence: [indexedDBLocalPersistence, browserLocalPersistence] });
@@ -41,15 +42,19 @@ const ROLES = {
 };
 
 // Secciones por rol. El supervisor solo ve turnos y sitios propios; el resto es del admin.
+// [clave, etiqueta, vista, ícono]
 const SECCIONES = {
-  supervisor: [["vivo", "En vivo", vistaVivo], ["asistencia", "Asistencia", vistaAsistencia], ["rondines", "Rondines", vistaRondines], ["incidencias", "Incidencias", vistaIncidencias], ["visitantes", "Visitantes", vistaVisitantes], ["bitacoras", "Bitácoras", vistaBitacoras], ["offline", "Sin conexión", vistaOffline], ["alertas", "Alertas", vistaAlertas], ["turnos", "Turnos", vistaTurnos], ["sitios", "Mis sitios", vistaSitios]],
-  admin: [["vivo", "En vivo", vistaVivo], ["asistencia", "Asistencia", vistaAsistencia], ["rondines", "Rondines", vistaRondines], ["incidencias", "Incidencias", vistaIncidencias], ["visitantes", "Visitantes", vistaVisitantes], ["bitacoras", "Bitácoras", vistaBitacoras], ["offline", "Sin conexión", vistaOffline], ["alertas", "Alertas", vistaAlertas], ["turnos", "Turnos", vistaTurnos], ["sitios", "Sitios", vistaSitios], ["personal", "Personal", vistaPersonal], ["reportes", "Reportes", vistaReportes], ["empresa", "Empresa", vistaEmpresa], ["bitacora", "Bitácora", vistaBitacora]],
+  supervisor: [["vivo", "En vivo", vistaVivo, "envivo"], ["asistencia", "Asistencia", vistaAsistencia, "asistencia"], ["rondines", "Rondines", vistaRondines, "rondines"], ["incidencias", "Incidencias", vistaIncidencias, "incidencias"], ["visitantes", "Visitantes", vistaVisitantes, "visitantes"], ["bitacoras", "Bitácoras", vistaBitacoras, "bitacoras"], ["offline", "Sin conexión", vistaOffline, "sinconexion"], ["alertas", "Alertas", vistaAlertas, "alertas"], ["turnos", "Turnos", vistaTurnos, "turnos"], ["sitios", "Mis sitios", vistaSitios, "sitios"]],
+  admin: [["vivo", "En vivo", vistaVivo, "envivo"], ["asistencia", "Asistencia", vistaAsistencia, "asistencia"], ["rondines", "Rondines", vistaRondines, "rondines"], ["incidencias", "Incidencias", vistaIncidencias, "incidencias"], ["visitantes", "Visitantes", vistaVisitantes, "visitantes"], ["bitacoras", "Bitácoras", vistaBitacoras, "bitacoras"], ["offline", "Sin conexión", vistaOffline, "sinconexion"], ["alertas", "Alertas", vistaAlertas, "alertas"], ["turnos", "Turnos", vistaTurnos, "turnos"], ["sitios", "Sitios", vistaSitios, "sitios"], ["personal", "Personal", vistaPersonal, "personal"], ["reportes", "Reportes", vistaReportes, "reportes"], ["empresa", "Empresa", vistaEmpresa, "empresa"], ["bitacora", "Bitácora", vistaBitacora, "auditoria"]],
 };
 
 // Sesión activa: para cerrarla limpiamente (cola local, botón de pánico, alertas).
 let rolActual = null;
 let limpiezaVista = null; // una vista en tiempo real devuelve la función que cancela sus listeners
 function detenerSesion() {
+  document.body.classList.remove("menu-abierto");
+  delete document.body.dataset.rol;
+  $("btn-menu").hidden = true; $("btn-campana").hidden = true;
   if (limpiezaVista) { limpiezaVista(); limpiezaVista = null; }
   detenerEnvio(); desmontarPanico(); detenerAlertasPanico();
   const b = $("barra-sync");
@@ -59,6 +64,7 @@ function detenerSesion() {
 async function montarApp(ctx) {
   const raiz = $("contenido");
   rolActual = ctx.user.rol;
+  document.body.dataset.rol = ctx.user.rol; // el diseño (menú lateral, encabezado, fondo) depende del rol
   aplicarLicencia(); // banner de "próximo a vencer" para admin y supervisores
   if (ctx.user.rol === "guardia") {
     // Modo sin internet: cola local + envío automático + indicador + botón de pánico en todas las pantallas
@@ -83,10 +89,38 @@ async function montarApp(ctx) {
     try { await vistaGuardia(raiz, ctx); } catch { limpiar(raiz); raiz.append(h("p", { class: "error" }, "No fue posible cargar tu turno.")); }
     return;
   }
-  for (const [clave, etiqueta] of secciones)
-    nav.append(h("button", { type: "button", class: "tab-app", "data-clave": clave, onclick: () => abrir(clave) }, etiqueta));
+  for (const [clave, etiqueta, , ico] of secciones)
+    nav.append(h("button", { type: "button", class: "tab-app", "data-clave": clave, onclick: () => { cerrarMenu(); abrir(clave); } }, icono(ico, { tam: 20 }), etiqueta));
+  prepararEncabezado(() => abrir("alertas"));
   await abrir(secciones[0][0]);
 }
+
+$("btn-salir").prepend(icono("salida", { tam: 18 }));
+$("btn-salir").setAttribute("aria-label", "Salir");
+
+// ---- Encabezado y menú (supervisor / admin): menú desplegable en celular, campana de alertas, avatar ----
+function cerrarMenu() {
+  document.body.classList.remove("menu-abierto");
+  $("btn-menu").setAttribute("aria-expanded", "false");
+}
+function prepararEncabezado(abrirAlertas) {
+  const menu = $("btn-menu"), campana = $("btn-campana"), avatar = $("topbar-avatar");
+  menu.hidden = false; campana.hidden = false;
+  limpiar(menu); menu.append(icono("menu", { tam: 24 }));
+  limpiar(campana); campana.append(icono("alertas", { tam: 22 }), h("span", { class: "campana-n", id: "campana-n", hidden: true }));
+  limpiar(avatar); avatar.append(icono("usuario", { tam: 24 }));
+  menu.onclick = () => { const abierto = document.body.classList.toggle("menu-abierto"); menu.setAttribute("aria-expanded", String(abierto)); };
+  campana.onclick = abrirAlertas;
+}
+document.addEventListener("click", (e) => { if (document.body.classList.contains("menu-abierto") && !e.target.closest("#tabs-app, #btn-menu")) cerrarMenu(); });
+document.addEventListener("keydown", (e) => { if (e.key === "Escape") cerrarMenu(); });
+// alertas.js avisa cuántas alertas de pánico hay activas: el número se ve en la campana (y se anuncia a lectores de pantalla)
+window.addEventListener("panico-activas", (e) => {
+  const n = Number(e.detail) || 0, c = $("btn-campana"), b = $("campana-n");
+  if (!b) return;
+  b.hidden = n === 0; b.textContent = String(n);
+  c.setAttribute("aria-label", n ? `Alertas: ${n} de pánico activa${n === 1 ? "" : "s"}` : "Alertas");
+});
 
 function mostrar(nombre) {
   if (licencia?.vencido) nombre = "demo"; // demo concluida: la pantalla reemplaza al login y a la app
@@ -226,7 +260,7 @@ onAuthStateChanged(auth, async (user) => {
   }
   await cargarReloj();
   try {
-    let rol, nombre, desdeCopia = false;
+    let rol, nombre, numero = "", desdeCopia = false;
     try {
       const { claims } = await user.getIdTokenResult(true); // el rol viene SOLO del token emitido por el Worker
       rol = claims.rol;
@@ -235,11 +269,12 @@ onAuthStateChanged(auth, async (user) => {
       const snap = await getDoc(doc(db, "usuarios", user.uid));
       if (!snap.exists() || snap.data().activo !== true) { await cerrarSesion(); error("Esta cuenta no tiene acceso a la aplicación."); return; }
       nombre = snap.data().nombre;
-      metaSet("identidad", { uid: user.uid, rol, nombre });
+      numero = snap.data().numeroEmpleado || ""; // solo para mostrarlo en el inicio del guardia (ya viene en el perfil; sin lecturas nuevas)
+      metaSet("identidad", { uid: user.uid, rol, nombre, numero });
     } catch (e) {
       // Sin conexión NO se cierra la sesión (y no se pierde lo capturado): se usa la identidad validada la última vez.
       const copia = await metaGet("identidad");
-      if (copia && copia.uid === user.uid && ROLES[copia.rol] && (navigator.onLine === false || !e?.code || /network|unavailable|offline/i.test(String(e.code)))) { rol = copia.rol; nombre = copia.nombre; desdeCopia = true; }
+      if (copia && copia.uid === user.uid && ROLES[copia.rol] && (navigator.onLine === false || !e?.code || /network|unavailable|offline/i.test(String(e.code)))) { rol = copia.rol; nombre = copia.nombre; numero = copia.numero || ""; desdeCopia = true; }
       else throw e;
     }
     const info = ROLES[rol];
@@ -247,7 +282,7 @@ onAuthStateChanged(auth, async (user) => {
     $("nombre").textContent = nombre;
     $("rol").textContent = desdeCopia ? `${info.etiqueta} · sin conexión` : info.etiqueta;
     mostrar("inicio");
-    await montarApp({ db, api, auth, user: { uid: user.uid, rol, nombre } });
+    await montarApp({ db, api, auth, user: { uid: user.uid, rol, nombre, numero } });
   } catch {
     // No se pudo validar y tampoco hay copia: se queda en el login SIN cerrar la sesión (se reintenta al reabrir).
     await revisarLicencia(); // si la causa es la demo concluida (reglas de Firestore), se muestra su pantalla

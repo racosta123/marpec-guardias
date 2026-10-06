@@ -48,6 +48,7 @@ try {
     // el primer arranque de Chrome puede tardar varios segundos: se espera a que la app salga de «Cargando…»
     const fin = Date.now() + 20000;
     while (Date.now() < fin) { await espera(250); if (await ev("(() => { const c = document.getElementById('cargando'); return Boolean(c) && c.hidden; })()")) break; }
+    await hasta("!/Cargando tu turno|Conectando en vivo|Cargando/.test((document.getElementById('contenido') || {}).innerText || '')", 30000); // la sección termina de cargar (no depende de la velocidad)
     await espera(ms);
   };
   const texto = (sel) => ev(`(document.querySelector(${JSON.stringify(sel)}) || {}).innerText || ""`);
@@ -68,9 +69,11 @@ try {
   await cmd("Page.addScriptToEvaluateOnNewDocument", { source: `(() => { const g = navigator.mediaDevices.getUserMedia.bind(navigator.mediaDevices); window.__streams = []; navigator.mediaDevices.getUserMedia = async (c) => { await new Promise((r) => setTimeout(r, window.__camMs ?? ${camMs})); const s = await g(c); window.__streams.push(s); return s; }; })();` });
   await cmd("Page.addScriptToEvaluateOnNewDocument", { source: `window.BarcodeDetector = class { constructor() {} async detect() { return [{ rawValue: "MPC1.siteA.1.AAAAAAAAAAAAAAAAAAAAAA" }]; } };` });
   await ir("/index.html?rol=guardia");
-  const tarjeta = await texto("#contenido");
+  const tarjeta = await conTexto("#contenido", /Llaves en caseta/, 30000); // el inicio se arma por partes (turno, sitio, notas del relevo): se espera a que esté completo
   check("guardia: muestra su turno, sitio y consignas", /Plaza Norte/.test(tarjeta) && /Rondín cada 2 horas/.test(tarjeta));
   check("guardia: botón grande «MARCAR ENTRADA» (ventana abierta)", /MARCAR ENTRADA/i.test(tarjeta));
+  const chicos = await ev("[...document.querySelectorAll('#vista-inicio button, #vista-inicio a.btn, #btn-panico')].filter((b) => { const r = b.getBoundingClientRect(); return r.width > 0 && r.height > 0 && r.height < 47.5; }).map((b) => (b.textContent || b.id).trim().slice(0, 20) + ' ' + Math.round(b.getBoundingClientRect().height)).join(' | ')");
+  check("guardia: todos los botones del inicio miden al menos 48 px de alto", chicos === "", chicos);
   check("guardia: ve las notas de entrega del turno anterior", /Notas de entrega de Gema Guardia/i.test(tarjeta) && /Llaves en caseta/.test(tarjeta));
 
   await hasta("!!document.querySelector('.btn.grande')");

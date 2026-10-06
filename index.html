@@ -12,7 +12,7 @@
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="icon" type="image/png" href="marpec-logo.png">
   <link rel="apple-touch-icon" href="icons/apple-touch-icon-180.png">
-  <link rel="preload" href="fonts/barlow-400.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="preload" href="fonts/inter-400.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="stylesheet" href="css/app.css">
 </head>
 <body>
@@ -64,12 +64,18 @@
   <div id="vista-inicio" class="screen" hidden>
     <div id="banner-licencia" class="banner-licencia" role="status" hidden></div>
     <header class="topbar">
-      <img src="marpec-logo.png" alt="" width="38" height="40">
+      <button id="btn-menu" class="btn-menu" type="button" aria-label="Abrir el menú de secciones" aria-expanded="false" aria-controls="tabs-app" hidden></button>
+      <img class="topbar-logo" src="marpec-logo.png" alt="" width="40" height="42">
       <div class="topbar-id">
         <h1 id="inicio-titulo">MARPEC</h1>
+        <span class="topbar-lema">Lealtad, Honradez, Disciplina</span>
+      </div>
+      <button id="btn-campana" class="btn-campana" type="button" aria-label="Alertas" hidden></button>
+      <div class="topbar-user">
+        <span class="topbar-avatar" id="topbar-avatar" aria-hidden="true"></span>
         <span class="topbar-quien"><span id="nombre"></span> · <span id="rol" class="rol-mini"></span></span>
       </div>
-      <button id="btn-salir" class="btn secondary" type="button">Salir</button>
+      <button id="btn-salir" class="btn secondary" type="button"><span class="btn-salir-txt">Salir</span></button>
     </header>
     <div class="instalar instalar-barra" data-instalar hidden></div>
     <div id="barra-sync" class="barra-sync" role="status" aria-live="polite" hidden></div>

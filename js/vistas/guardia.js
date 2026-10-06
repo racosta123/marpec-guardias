@@ -7,6 +7,7 @@ import { abrirRondin } from "./rondin.js";
 import { listar, metaGet, metaSet, ahoraEstimado } from "../cola.js";
 import { rondinConRespaldo } from "../rondin-local.js";
 import { abrirBitacora, abrirIncidencia, abrirNovedad, abrirVisitantes } from "./libro.js";
+import { icono } from "../iconos.js";
 
 const H = 3600e3;
 
@@ -18,6 +19,9 @@ const CAMPOS_T = ["sitioId", "sitioNombre", "inicioMs", "finMs", "estado", "plan
 const CAMPOS_A = ["estado", "entradaMs", "salidaMs", "retardo", "retardoMin", "falta", "minutosExtra", "extraEstado", "relevoAlerta", "relevoRequerido", "relevoLlegado", "cierreAutorizado", "ventanaEntradaDesdeMs"];
 const CAMPOS_S = ["nombre", "direccion", "consignas", "lat", "lng", "radioM", "telefonoEmergencia"];
 const conTiempo = (p, ms) => Promise.race([p, new Promise((_, rej) => setTimeout(() => rej(new Error("tiempo agotado")), ms))]);
+
+// 8 h 36 min / 45 min (solo se deriva de los horarios del turno y de la hora actual; no pide nada nuevo)
+const dur = (ms) => { const m = Math.max(0, Math.round(ms / 60000)); return m >= 60 ? `${Math.floor(m / 60)} h${m % 60 ? ` ${m % 60} min` : ""}` : `${m} min`; };
 
 // Turno vigente, siguientes turnos y sitio, leídos de Firestore (reglas: solo lo del propio guardia).
 async function cargarEnLinea({ db, user }) {
@@ -38,6 +42,14 @@ async function cargarEnLinea({ db, user }) {
   let sitio = null;
   if (vigente) { try { const s = await getDoc(doc(db, "sitios", vigente.t.sitioId)); if (s.exists()) sitio = pick(s.data(), CAMPOS_S); } catch (e) { if (e.code !== "permission-denied") throw e; /* sin acceso: se omite; cualquier otro error (red) cae a la copia local */ } }
   return { vigente, siguientes, sitio };
+}
+
+// Acceso grande de color del libro del turno (el texto es el de siempre; el dato va debajo cuando existe).
+function acceso(clase, ico, titulo, sub, onclick, extra = {}) {
+  return h("button", { class: `libro-btn acceso ${clase}`, type: "button", onclick, ...extra },
+    h("span", { class: "ico-caja" }, icono(ico, { tam: 24 })),
+    h("span", { class: "a-txt" }, h("span", { class: "a-t" }, titulo), sub ? h("span", { class: "a-s" }, sub) : null),
+    icono("derecha", { tam: 18, clase: "der" }));
 }
 
 export async function vistaGuardia(raiz, ctx) {
@@ -64,9 +76,15 @@ export async function vistaGuardia(raiz, ctx) {
   const pend = { entrada: cola.find((x) => x.tipo === "entrada"), salida: cola.find((x) => x.tipo === "salida") };
 
   limpiar(raiz);
-  if (desdeCopia) poner(raiz, h("p", { class: "alerta" }, "Sin conexión: se muestra tu último turno guardado en este celular. Puedes marcar y reportar; todo se enviará solo al volver la señal."));
+  const perfil = (etiqueta, clase) => h("div", { class: "g-perfil" },
+    h("span", { class: "g-avatar" }, icono("usuario", { tam: 30 })),
+    h("div", { class: "g-quien" }, h("span", { class: "g-nombre" }, user.nombre || "Guardia"), h("span", { class: "g-rol" }, `Guardia${user.numero ? ` · No. ${user.numero}` : ""}`)),
+    etiqueta ? h("span", { class: `g-estado ${clase || ""}`.trim() }, etiqueta) : null);
+  const home = h("div", { class: "g-home" });
+  poner(raiz, home);
+  if (desdeCopia) poner(home, h("p", { class: "alerta" }, "Sin conexión: se muestra tu último turno guardado en este celular. Puedes marcar y reportar; todo se enviará solo al volver la señal."));
   if (!vigente) {
-    poner(raiz, h("p", { class: "vacio" }, "No tienes turnos asignados por ahora."), listaSiguientes(siguientes));
+    poner(home, perfil(null), h("p", { class: "vacio" }, "No tienes turnos asignados por ahora."), listaSiguientes(siguientes));
     return;
   }
 
@@ -91,23 +109,47 @@ export async function vistaGuardia(raiz, ctx) {
   } else if (ahora >= ventanaDesde) { etiqueta = a?.falta ? "Entrada tardía (falta)" : "Sin marcar"; clase = a?.falta ? "mal" : "info"; accion = "entrada"; }
   else { etiqueta = "Próximo turno"; clase = "info"; ayuda = `Podrás marcar tu entrada desde las ${hora(ventanaDesde)}.`; }
 
-  const boton = accion ? h("button", { class: `btn primario grande ${accion === "salida" ? "salida" : ""}`, type: "button",
+  const boton = accion ? h("button", { class: `btn primario grande g-accion ${accion === "salida" ? "salida" : ""}`, type: "button",
     onclick: () => abrirMarcado({ tipo: accion, turno: t, sitio, api, alTerminar: recargar }) },
-  accion === "entrada" ? "MARCAR ENTRADA" : "MARCAR SALIDA") : null;
+  icono(accion === "entrada" ? "entrada" : "salida", { tam: 36 }),
+  h("span", { class: "g-accion-txt" },
+    h("span", { class: "g-accion-t" }, accion === "entrada" ? "MARCAR ENTRADA" : "MARCAR SALIDA"),
+    entradaMs ? h("span", { class: "g-accion-s" }, `Entrada ${hora(entradaMs)} `, icono("check", { tam: 16 })) : null)) : null;
+
+  // Avance del turno y tiempo restante: solo se calculan con el horario del turno y la hora actual.
+  const total = t.finMs - t.inicioMs;
+  let avance = null;
+  if (!salidaMs && total > 0) {
+    if (ahora < t.inicioMs) avance = h("div", { class: "g-avance" }, h("div", { class: "g-avance-fila" }, h("span", {}, "El turno inicia en"), h("b", {}, dur(t.inicioMs - ahora))));
+    else {
+      const pct = Math.min(100, Math.max(0, Math.round(((ahora - t.inicioMs) / total) * 100)));
+      const relleno = h("span", {});
+      relleno.style.width = `${pct}%`; // por CSSOM: la política de seguridad no permite el atributo style
+      avance = h("div", { class: "g-avance" },
+        h("div", { class: "g-avance-fila" }, h("span", {}, "Avance del turno"), h("b", {}, `${pct}%`)),
+        h("div", { class: "g-barra", role: "progressbar", "aria-valuemin": 0, "aria-valuemax": 100, "aria-valuenow": pct, "aria-label": "Avance del turno" }, relleno),
+        h("div", { class: "g-avance-fila" }, h("span", { class: "g-etiqueta" }, icono("reloj", { tam: 16 }), "Tiempo restante"), h("b", {}, ahora < t.finMs ? dur(t.finMs - ahora) : "Turno terminado")));
+    }
+  }
 
   const consignas = sitio?.consignas;
-  poner(raiz,
-    h("section", { class: "tarjeta turno-grande" },
-      h("span", { class: `etq ${clase}` }, etiqueta),
-      h("h3", {}, diaLargo(t.inicioMs)),
-      h("p", { class: "hora-grande" }, `${hora(t.inicioMs)} – ${hora(t.finMs)}`, h("small", {}, ` (${duracionH(t.inicioMs, t.finMs)})`)),
-      h("p", {}, h("b", {}, "Sitio: "), t.sitioNombre),
-      sitio?.direccion ? h("p", { class: "sub" }, sitio.direccion) : null,
-      entradaMs ? h("p", { class: "sub" }, `Entrada: ${hora(entradaMs)}${a?.retardo ? ` · retardo de ${a.retardoMin} min` : ""}${salidaMs ? ` · Salida: ${hora(salidaMs)}` : ""}`) : null,
-      a?.minutosExtra > 0 ? h("p", { class: "sub" }, `Tiempo extra: ${a.minutosExtra} min (${a.extraEstado === "autorizado" ? "autorizado" : a.extraEstado === "rechazado" ? "rechazado" : "pendiente de autorización"})`) : null,
+  poner(home,
+    perfil(etiqueta, clase),
+    h("section", { class: "g-turno turno-grande" },
+      h("div", { class: "g-turno-fila" },
+        h("div", { class: "g-turno-col" },
+          h("span", { class: "g-etiqueta" }, icono("reloj", { tam: 16 }), "Turno actual"),
+          h("p", { class: "g-valor hora-grande" }, `${hora(t.inicioMs)} – ${hora(t.finMs)}`),
+          h("span", { class: "g-sitio-sub" }, `${diaLargo(t.inicioMs)} (${duracionH(t.inicioMs, t.finMs)})`)),
+        h("div", { class: "g-turno-col" },
+          h("span", { class: "g-etiqueta" }, icono("ubicacion", { tam: 16 }), "Sitio"),
+          h("p", { class: "g-sitio" }, t.sitioNombre, sitio?.direccion ? h("span", { class: "g-sitio-sub" }, sitio.direccion) : null))),
+      avance,
+      entradaMs ? h("p", { class: "g-extra" }, `Entrada: ${hora(entradaMs)}${a?.retardo ? ` · retardo de ${a.retardoMin} min` : ""}${salidaMs ? ` · Salida: ${hora(salidaMs)}` : ""}`) : null,
+      a?.minutosExtra > 0 ? h("p", { class: "g-extra" }, `Tiempo extra: ${a.minutosExtra} min (${a.extraEstado === "autorizado" ? "autorizado" : a.extraEstado === "rechazado" ? "rechazado" : "pendiente de autorización"})`) : null,
       ayuda ? h("p", { class: "ayuda-relevo" }, ayuda) : null,
-      boton,
       h("div", { class: "consignas-caja" }, h("h4", {}, "Consignas del puesto"), h("p", {}, consignas || "Sin consignas registradas."))),
+    boton,
     h("div", { id: "libro-card" }),
     h("div", { id: "rondines-card" }),
     h("div", { id: "notas-relevo" }),
@@ -115,17 +157,21 @@ export async function vistaGuardia(raiz, ctx) {
     h("p", { class: "ayuda" }, "Horario de Hermosillo (UTC-7, sin horario de verano). Para marcar se usa tu ubicación solo en ese momento."));
 
   // Libro del turno: novedades, incidencias, visitantes y bitácora (solo con entrada marcada y turno abierto)
+  let accesos = null;
   if (entradaMs && !salidaMs) {
     const dest = raiz.querySelector("#libro-card");
     const ctxLibro = { turno: t, api, alTerminar: recargar };
-    const btnVis = h("button", { class: "btn secundario libro-btn", type: "button", onclick: () => abrirVisitantes(ctxLibro) }, "🚶 Visitantes");
-    poner(dest, h("section", { class: "tarjeta" }, h("h4", { class: "titulo-seccion" }, "Libro del turno"),
-      h("div", { class: "libro-botones" },
-        h("button", { class: "btn primario libro-btn", type: "button", onclick: () => abrirNovedad(ctxLibro) }, "📝 Novedad"),
-        h("button", { class: "btn peligro libro-btn", type: "button", onclick: () => abrirIncidencia(ctxLibro) }, "⚠️ Incidencia"),
-        btnVis,
-        h("button", { class: "btn secundario libro-btn", type: "button", onclick: () => abrirBitacora({ turno: t, api }) }, "📖 Bitácora"))));
-    api(`/visitantes/dentro?turnoId=${encodeURIComponent(t.id)}`, { method: "GET" }).then((v) => { if (v.dentro.length) btnVis.textContent = `🚶 Visitantes (${v.dentro.length} dentro)`; }).catch(() => {});
+    const tileVis = acceso("a-visitantes", "visitantes", "Visitantes", null, () => abrirVisitantes(ctxLibro));
+    accesos = h("div", { class: "g-accesos" },
+      acceso("a-incidencia", "incidencias", "Reportar incidencia", null, () => abrirIncidencia(ctxLibro)),
+      tileVis,
+      acceso("a-bitacora", "libro", "Bitácora", null, () => abrirBitacora({ turno: t, api })),
+      acceso("a-novedad", "novedad", "Novedad", "Anotar algo del turno", () => abrirNovedad(ctxLibro)));
+    poner(dest, h("section", { class: "g-libro" }, h("h4", { class: "g-titulo" }, "Libro del turno"), accesos));
+    api(`/visitantes/dentro?turnoId=${encodeURIComponent(t.id)}`, { method: "GET" }).then((v) => {
+      const sub = h("span", { class: "a-s" }, v.dentro.length ? `${v.dentro.length} dentro ahora` : "Ninguno dentro");
+      tileVis.querySelector(".a-txt").append(sub);
+    }).catch(() => {});
     api(`/bitacora/anterior?turnoId=${encodeURIComponent(t.id)}`, { method: "GET" }).then((a) => {
       if (!a.hay || !a.bitacora.visitantesDentro?.length) return;
       poner(dest, h("p", { class: "alerta" }, `Del turno anterior siguen dentro: ${a.bitacora.visitantesDentro.map((x) => x.nombre).join(", ")}.`));
@@ -146,6 +192,14 @@ export async function vistaGuardia(raiz, ctx) {
             h("button", { class: "btn primario grande", type: "button", onclick: () => abrirRondin({ turno: t, api, alTerminar: recargar }) }, a.hechos > 0 ? "CONTINUAR RONDÍN" : "INICIAR RONDÍN")]
             : h("p", { class: "sub" }, r.proximoMs ? `No hay un rondín en este momento. Próximo: ${hora(r.proximoMs)}.` : "No hay más rondines programados en tu turno."),
           h("div", { class: "chips-rondin" }, r.rondines.map((x) => { const [txt, c] = ESTADO[x.estado] || [x.estado, "info"]; return h("span", { class: `etq ${c}` }, `${hora(x.programadoMs)} · ${txt}`); }))));
+        // Acceso grande de «Rondín» (mismo flujo que el botón de la tarjeta): próximo rondín o avance de puntos
+        if (accesos) {
+          const sub = a ? `En curso · ${a.hechos}/${a.total} puntos` : r.proximoMs ? `Próximo: ${hora(r.proximoMs)}` : "Sin más rondines";
+          accesos.prepend(h("button", { class: "acceso a-rondin", type: "button", onclick: () => (a ? abrirRondin({ turno: t, api, alTerminar: recargar }) : dest.scrollIntoView?.({ block: "center" })) },
+            h("span", { class: "ico-caja" }, icono("rondin", { tam: 24 })),
+            h("span", { class: "a-txt" }, h("span", { class: "a-t" }, "Rondín"), h("span", { class: "a-s" }, sub)),
+            icono("derecha", { tam: 18, clase: "der" })));
+        }
       }
     } catch { /* sin conexión o sin programa */ }
   }

@@ -7,6 +7,7 @@ import { enviarRegistro } from "./envio.js";
 import { metaGet } from "./cola.js";
 import { h, limpiar, poner } from "./ui.js";
 import { hora } from "./tz.js";
+import { icono } from "./iconos.js";
 
 export const MANTENER_MS = 3000;
 let raizBoton = null;
@@ -16,7 +17,7 @@ export function montarPanico(contenedor, { getTurnoId = () => null } = {}) {
   desmontarPanico();
   const anillo = h("span", { class: "panico-anillo", "aria-hidden": "true" });
   const boton = h("button", { id: "btn-panico", class: "btn-panico", type: "button", "aria-label": "Botón de pánico: mantén presionado 3 segundos" },
-    anillo, h("span", { class: "panico-sos" }, "SOS"), h("span", { class: "panico-txt" }, "Mantén 3 s"));
+    anillo, icono("panico", { tam: 28 }), h("span", { class: "panico-sos" }, "Pánico"), h("span", { class: "panico-txt" }, "Mantén 3 s"));
   contenedor.append(boton);
   raizBoton = boton;
 

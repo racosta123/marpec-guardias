@@ -6,6 +6,7 @@ import { h, limpiar, modal, poner, toast } from "./ui.js";
 import { hora } from "./tz.js";
 
 let baja = null;
+let quitarAtender = null;
 let audio = null;
 let sirena = null;
 let titulo0 = null;
@@ -56,6 +57,7 @@ export function iniciarAlertasPanico({ db, api, user }) {
     limpiar(cont);
     cont.hidden = !alertas.length;
     sonar(alertas.length > 0);
+    window.dispatchEvent(new CustomEvent("panico-activas", { detail: alertas.length })); // la campana del encabezado muestra el número
     if (!alertas.length) return;
     const sinSonido = audio && audio.state !== "running";
     poner(cont,
@@ -82,13 +84,20 @@ export function iniciarAlertasPanico({ db, api, user }) {
     });
   }
 
+  // La franja de pánico de «Operación en vivo» abre el mismo formulario de atención (misma lógica, mismo registro de quién y cuándo).
+  const alAtender = (e) => { const a = ultimas.find((x) => x.id === e.detail?.id); if (a) atender(a); };
+  window.addEventListener("atender-panico", alAtender);
+  quitarAtender = () => window.removeEventListener("atender-panico", alAtender);
+
   baja = onSnapshot(q, (snap) => pintar(snap.docs.map((d) => ({ id: d.id, ...d.data() }))), () => {
     if (!avisoError) { avisoError = true; toast("No se pudo escuchar las alertas de pánico en vivo. Recarga la app.", "error"); }
   });
 }
 
 export function detenerAlertasPanico() {
+  if (quitarAtender) { quitarAtender(); quitarAtender = null; }
   if (baja) { baja(); baja = null; }
   sonar(false);
+  window.dispatchEvent(new CustomEvent("panico-activas", { detail: 0 }));
   document.getElementById("alertas-panico")?.remove();
 }

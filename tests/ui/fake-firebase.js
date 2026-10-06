@@ -62,6 +62,13 @@ if (p.get("entrada")) Object.assign(store.asistencias.t5, { estado: "en_turno", 
 store.turnos.t5.inicioMs = p.get("entrada") ? ahora - 10 * 60e3 : store.turnos.t5.inicioMs;
 store.asistencias.t5.inicioMs = store.turnos.t5.inicioMs;
 
+// ?hace=4.1 (con entrada=1): el turno del guardia empezó hace 4.1 h y dura 12 h (para capturas del rediseño)
+if (p.get("hace")) {
+  const hh = Number(p.get("hace"));
+  store.turnos.t5.inicioMs = ahora - hh * 3600e3; store.turnos.t5.finMs = store.turnos.t5.inicioMs + 12 * 3600e3;
+  Object.assign(store.asistencias.t5, { inicioMs: store.turnos.t5.inicioMs, finMs: store.turnos.t5.finMs, entradaMs: store.turnos.t5.inicioMs + 6 * 60e3, estado: "en_turno" });
+}
+
 // Fase 4: puntos, programa y rondines simulados
 store.puntos = {
   p1: { sitioId: "siteA", supervisorUid: "sup1", nombre: "Portón", descripcion: "Entrada principal", orden: 1, qrVersion: 1, lat: 29.0729, lng: -110.9559, radioM: 30, activo: true },
@@ -169,3 +176,27 @@ export const onAuthStateChanged = (_a, f) => { cb = f; setTimeout(() => f(p.get(
 export const signOut = async () => { auth.currentUser = null; if (cb) cb(null); };
 export const signInWithCustomToken = async () => {};
 export const signInWithEmailAndPassword = async () => {};
+
+// ?demo=vivo: seis puestos con todos los estados (cubierto, pánico, descubierto, en rondín, alerta) para las capturas de «Operación en vivo»
+if (p.get("demo") === "vivo") {
+  const H = 3600e3, M = 60e3;
+  Object.assign(store, { sitios: {}, turnos: {}, asistencias: {}, rondines: {}, incidenciasResumen: {}, visitantesVista: {}, panicoVista: {}, offlineVista: {} });
+  const S = (id, nombre) => { store.sitios[id] = { nombre, cliente: "Demo", direccion: "", consignas: "", supervisorUid: "sup1", qrVersion: 1, radioM: 100, activo: true }; return id; };
+  const T = (id, sitioId, nombre, guardiaUid, guardia, inicioHace, entradaMin) => {
+    store.turnos[id] = { sitioId, sitioNombre: nombre, supervisorUid: "sup1", guardiaUid, inicioMs: ahora - inicioHace * H, finMs: ahora + (12 - inicioHace) * H, plantilla: "diurno", estado: "programado" };
+    store.asistencias[id] = { turnoId: id, sitioId, sitioNombre: nombre, supervisorUid: "sup1", guardiaUid, guardiaNombre: guardia, inicioMs: ahora - inicioHace * H, finMs: ahora + (12 - inicioHace) * H, estado: entradaMin === null ? "por_marcar" : "en_turno", entradaMs: entradaMin === null ? null : ahora - inicioHace * H + entradaMin * M, salidaMs: null, retardo: false, falta: false, minutosExtra: 0, extraEstado: "ninguno", relevoAlerta: false, ajustes: 0 };
+  };
+  S("s1", "Plaza Comercial Norte"); T("v1", "s1", "Plaza Comercial Norte", "g1", "Juan Pérez", 3.6, 5);
+  S("s2", "Torre Médica"); T("v2", "s2", "Torre Médica", "g2", "Carlos Díaz", 5, 4);
+  S("s3", "Bodega Industrial Sur"); T("v3", "s3", "Bodega Industrial Sur", null, "", 0.4, null);
+  S("s4", "Agencia Automotriz"); T("v4", "s4", "Agencia Automotriz", "g4", "Miguel Rojas", 2.7, 3);
+  S("s5", "Residencial Los Álamos"); T("v5", "s5", "Residencial Los Álamos", "g5", "Luis Torres", 4.4, 6);
+  S("s6", "Escuela Primaria"); T("v6", "s6", "Escuela Primaria", "g6", "Roberto Silva", 14.2, 5); store.asistencias.v6.relevoAlerta = true; store.asistencias.v6.finMs = ahora - 2.2 * H; store.turnos.v6.finMs = ahora - 2.2 * H;
+  store.rondines = { r4: { fecha: new Date(ahora - 7 * 3600e3).toISOString().slice(0, 10), turnoId: "v4", sitioId: "s4", sitioNombre: "Agencia Automotriz", supervisorUid: "sup1", programadoMs: ahora - 20 * M, venceMs: ahora + 40 * M, estado: "en_curso", hechos: 2, total: 5 },
+    r1: { fecha: new Date(ahora - 7 * 3600e3).toISOString().slice(0, 10), turnoId: "v1", sitioId: "s1", sitioNombre: "Plaza Comercial Norte", supervisorUid: "sup1", programadoMs: ahora - 2 * H, venceMs: ahora - H, estado: "completo", hechos: 6, total: 6, finalizadoMs: ahora - 62 * M } };
+  store.panicoVista = { pn1: { panicoId: "pn1", sitioId: "s2", sitioNombre: "Torre Médica", supervisorUid: "sup1", guardiaUid: "g2", guardiaNombre: "Carlos Díaz", estado: "activa", tsMs: ahora - M, recibidoMs: ahora - M } };
+  store.incidenciasResumen = { i1: { sitioId: "s1", sitioNombre: "Plaza Comercial Norte", supervisorUid: "sup1", guardiaUid: "g1", creadoMs: ahora - 7 * M, gravedad: "media", tipoNombre: "Puerta sin cerrar", estado: "abierta" } };
+  store.visitantesVista = { vv1: { sitioId: "s5", sitioNombre: "Residencial Los Álamos", supervisorUid: "sup1", nombre: "Proveedor #458", entradaMs: ahora - 36 * M, dentro: true } };
+  store.usuarios[UID] = { ...store.usuarios[UID] };
+  if (p.get("sinpanico")) store.panicoVista = {}; // sin pánico activo: se ve el encabezado completo (con pánico, el aviso tapa la parte de arriba hasta atenderlo)
+}

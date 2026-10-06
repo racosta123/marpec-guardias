@@ -31,11 +31,4 @@ await build({
 });
 copyFileSync("node_modules/jsqr/LICENSE", "js/vendor/LICENSE-jsqr-Apache-2.0.txt");
 
-mkdirSync("fonts", { recursive: true });
-const f = "node_modules/@fontsource";
-for (const w of [400, 500, 600, 700])
-  copyFileSync(`${f}/barlow/files/barlow-latin-${w}-normal.woff2`, `fonts/barlow-${w}.woff2`);
-for (const w of [600, 700])
-  copyFileSync(`${f}/barlow-condensed/files/barlow-condensed-latin-${w}-normal.woff2`, `fonts/barlow-condensed-${w}.woff2`);
-copyFileSync(`${f}/barlow/LICENSE`, "fonts/LICENSE-Barlow-OFL.txt");
-console.log("vendor listo");
+// Fuentes (Inter) e íconos (Lucide): node tools/build-diseno.mjs
