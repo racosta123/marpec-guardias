@@ -5,6 +5,7 @@
 //        [--horas=2] [--manana --inicio=08:00] [--telefono=6621234567]
 // Reutiliza los 3 puntos sin GPS del sitio si ya existen (si no, los crea).
 // Salidas locales (ignoradas por git): .tools/campo-fase6-acceso.txt y .tools/qr-campo-completo.html
+import "./_referer.mjs"; // la clave web está restringida por Referer
 import { execSync } from "node:child_process";
 import { createSign, randomBytes, randomInt } from "node:crypto";
 import { mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";

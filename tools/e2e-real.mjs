@@ -3,6 +3,7 @@
 // - Obtiene un token de admin firmando un custom token con la cuenta de servicio vía IAM (gcloud),
 //   sin conocer contraseñas y sin llaves en disco.
 // - Crea usuarios de PRUEBA (marcados prueba=true) y guarda sus credenciales en .tools/ (ignorado por git).
+import "./_referer.mjs"; // la clave web está restringida por Referer
 import { execSync } from "node:child_process";
 import { createSign, randomBytes, randomInt } from "node:crypto";
 import { mkdirSync, readFileSync, rmSync, writeFileSync, existsSync } from "node:fs";

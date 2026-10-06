@@ -1,6 +1,7 @@
 // Pruebas de seguridad de la FASE 2 EN REAL (Firebase + Worker desplegados).
 // Uso: node tools/e2e-real-fase2.mjs <uid-admin>
 // Crea datos de PRUEBA (prueba=true) que se borran con: node tools/borrar-pruebas.mjs --aplicar
+import "./_referer.mjs"; // la clave web está restringida por Referer
 import { execSync } from "node:child_process";
 import { createSign, randomBytes, randomInt } from "node:crypto";
 import { readFileSync, rmSync, writeFileSync } from "node:fs";

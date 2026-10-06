@@ -2,6 +2,7 @@
 // Uso: node tools/preparar-demo.mjs <uid-admin>
 // Todo queda marcado prueba=true (se borra con tools/borrar-pruebas.mjs --aplicar).
 // Salidas locales (ignoradas por git): .tools/demo-acceso.txt y .tools/qr-demo.html
+import "./_referer.mjs"; // la clave web está restringida por Referer
 import { execSync } from "node:child_process";
 import { createSign, randomBytes, randomInt } from "node:crypto";
 import { mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";

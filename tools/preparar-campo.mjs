@@ -2,6 +2,7 @@
 // que empieza en 15 minutos y el QR vigente imprimible.
 // Uso: node tools/preparar-campo.mjs <uid-admin> <sitioId> [minutosParaInicio=15] [horasDuracion=3]
 // Salidas locales (ignoradas por git): .tools/campo-acceso.txt y .tools/qr-campo.html
+import "./_referer.mjs"; // la clave web está restringida por Referer
 import { execSync } from "node:child_process";
 import { createSign, randomBytes, randomInt } from "node:crypto";
 import { mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";

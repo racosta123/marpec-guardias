@@ -1,6 +1,7 @@
 // Pruebas de seguridad y de negocio de la FASE 4 (rondines) EN REAL: Firebase + Worker + R2 desplegados.
 // Uso: node tools/e2e-real-fase4.mjs <uid-admin>      (tarda ~8 min: espera a que venzan rondines de prueba)
 // Crea datos de PRUEBA (prueba=true por herencia del sitio): node tools/borrar-pruebas.mjs --aplicar
+import "./_referer.mjs"; // la clave web está restringida por Referer
 import { execSync } from "node:child_process";
 import { createSign, randomBytes, randomInt } from "node:crypto";
 import { readFileSync, rmSync } from "node:fs";

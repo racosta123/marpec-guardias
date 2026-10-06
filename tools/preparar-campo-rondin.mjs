@@ -3,6 +3,7 @@
 // rondín programado a los M minutos del inicio. Genera una página local con los QR (asistencia + puntos).
 // Uso: node tools/preparar-campo-rondin.mjs <uid-admin> <sitioId> [minInicio=10] [minRondin=20] [tolInicio=30] [tolFin=60]
 // Salidas locales (ignoradas por git): .tools/campo-rondin-acceso.txt y .tools/qr-campo-completo.html
+import "./_referer.mjs"; // la clave web está restringida por Referer
 import { execSync } from "node:child_process";
 import { createSign, randomBytes, randomInt } from "node:crypto";
 import { mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";

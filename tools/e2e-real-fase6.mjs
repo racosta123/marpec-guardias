@@ -2,6 +2,7 @@
 // pánico (3 s, destinatarios, atención), panel en vivo (escuchas REALES de Firestore con el SDK) y suscripción push.
 // Uso: node tools/e2e-real-fase6.mjs <uid-admin>     (tarda ~2 min)
 // Crea datos de PRUEBA (prueba=true): node tools/borrar-pruebas.mjs --aplicar
+import "./_referer.mjs"; // la clave web está restringida por Referer
 import { execSync } from "node:child_process";
 import { createSign, randomBytes, randomInt, webcrypto } from "node:crypto";
 import { readFileSync, rmSync } from "node:fs";

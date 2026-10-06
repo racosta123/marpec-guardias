@@ -18,11 +18,13 @@ export function abrirMarcado({ tipo, turno, sitio, api, alTerminar }) {
   fondo.append(caja);
   document.body.append(fondo);
 
+  let seq = 0; // número del paso vigente: una cámara que termina de abrir tarde no se adueña de un paso que ya pasó
   function liberar() {
     if (detenerQr) { detenerQr(); detenerQr = null; }
     if (stream) { detener(stream); stream = null; }
   }
   function cerrar() {
+    seq++;
     liberar();
     if (estado.foto?.url) URL.revokeObjectURL(estado.foto.url);
     fondo.remove();
@@ -32,7 +34,7 @@ export function abrirMarcado({ tipo, turno, sitio, api, alTerminar }) {
     h("span", { class: "marcar-paso" }, paso ? `Paso ${paso} de 4` : "Antes de empezar"),
     h("button", { class: "btn-icono", type: "button", "aria-label": "Cancelar", onclick: cerrar }, "✕"),
     h("h2", {}, titulo));
-  const mostrar = (...nodos) => { liberar(); limpiar(caja); poner(caja, ...nodos); };
+  const mostrar = (...nodos) => { seq++; liberar(); limpiar(caja); poner(caja, ...nodos); };
   const mensajeError = (msg) => h("p", { class: "error", role: "alert" }, msg);
 
   // ---------- 0. introducción ----------
@@ -83,9 +85,13 @@ export function abrirMarcado({ tipo, turno, sitio, api, alTerminar }) {
     const video = h("video", { class: "marcar-video", autoplay: true, playsinline: true, muted: true });
     const aviso = h("p", { role: "status", class: "marcar-estado" }, "Apunta la cámara al código QR del puesto.");
     mostrar(cabecera(2, "Escanea el QR del puesto"), video, aviso);
+    const mio = seq;
     try {
-      stream = await abrirCamara("environment");
+      const s = await abrirCamara("environment");
+      if (mio !== seq) { detener(s); return; } // se canceló o cambió de paso mientras la cámara abría (celular lento): no queda encendida
+      stream = s;
       await mostrarEnVideo(video, stream);
+      if (mio !== seq) return;
       detenerQr = escanearQr(video, (texto) => {
         if (!/^MPC1\.[A-Za-z0-9_-]+\.\d+\.[A-Za-z0-9_-]+$/.test(texto)) { aviso.textContent = "Ese código no es de un puesto MARPEC."; aviso.className = "marcar-estado mal"; return; }
         const sitioQr = texto.split(".")[1];
@@ -94,6 +100,7 @@ export function abrirMarcado({ tipo, turno, sitio, api, alTerminar }) {
         pasoSelfie();
       });
     } catch (e) {
+      if (mio !== seq) return;
       aviso.textContent = e.message;
       aviso.className = "marcar-estado mal";
       poner(caja, h("button", { class: "btn secundario", type: "button", onclick: pasoQr }, "Reintentar"));
@@ -104,12 +111,18 @@ export function abrirMarcado({ tipo, turno, sitio, api, alTerminar }) {
   async function pasoSelfie() {
     const video = h("video", { class: "marcar-video espejo", autoplay: true, playsinline: true, muted: true });
     const aviso = h("p", { role: "status", class: "marcar-estado" }, "Mírate a la cámara frontal y toma tu selfie.");
-    const tomar = h("button", { class: "btn primario", type: "button" }, "📸 Tomar selfie");
+    const tomar = h("button", { class: "btn primario", type: "button", disabled: true }, "📸 Tomar selfie"); // se habilita cuando la cámara ya está en vivo
     mostrar(cabecera(3, "Selfie en vivo"), video, aviso, tomar);
+    const mio = seq;
     try {
-      stream = await abrirCamara("user");
+      const s = await abrirCamara("user");
+      if (mio !== seq) { detener(s); return; } // se canceló o cambió de paso mientras la cámara abría (celular lento): no queda encendida
+      stream = s;
       await mostrarEnVideo(video, stream);
+      if (mio !== seq) return;
+      tomar.disabled = false;
     } catch (e) {
+      if (mio !== seq) return;
       aviso.textContent = e.message;
       aviso.className = "marcar-estado mal";
       poner(caja, h("button", { class: "btn secundario", type: "button", onclick: pasoSelfie }, "Reintentar"));

@@ -36,6 +36,9 @@ try {
   const ev = async (expr) => (await cmd("Runtime.evaluate", { expression: expr, awaitPromise: true, returnByValue: true })).result?.result?.value;
   await cmd("Page.enable");
   await cmd("Runtime.enable");
+  // Celular lento: LENTO=6 limita la CPU a 1/6 (LENTO=1, por omisión, sin límite). La prueba no debe depender de la velocidad.
+  const lento = Number(process.env.LENTO || 1);
+  if (lento > 1) await cmd("Emulation.setCPUThrottlingRate", { rate: lento });
   // Reloj del navegador fijado alrededor de las 12:00 (Hermosillo) de HOY: las pruebas no dependen de la hora del día
   // (los datos simulados son relativos a «ahora» y a la fecha local; cerca de la medianoche cambiaban de día).
   await cmd("Page.addScriptToEvaluateOnNewDocument", { source: `(() => { const R = Date.now.bind(Date); const h = new Date(R() - 7 * 3600e3); const off = Date.UTC(h.getUTCFullYear(), h.getUTCMonth(), h.getUTCDate(), 12, 0) + 7 * 3600e3 - R(); const D = Date; globalThis.Date = class extends D { constructor(...a) { if (a.length) super(...a); else super(R() + off); } static now() { return R() + off; } }; })();` });
@@ -48,9 +51,21 @@ try {
     await espera(ms);
   };
   const texto = (sel) => ev(`(document.querySelector(${JSON.stringify(sel)}) || {}).innerText || ""`);
+  // Esperas por CONDICIÓN (no por tiempo fijo): la prueba no debe depender de lo rápido que arranque la cámara o la CPU.
+  const hasta = async (expr, ms = 30000) => { const fin = Date.now() + ms; do { if (await ev(expr)) return true; await espera(120); } while (Date.now() < fin); return false; };
+  const conTexto = async (sel, re, ms = 30000) => { const fin = Date.now() + ms; let t = ""; do { t = await texto(sel); if (re.test(t)) return t; await espera(120); } while (Date.now() < fin); return t; };
+  const clicBtn = async (re, sel = ".marcar-caja button", ms = 30000) => {
+    const q = `[...document.querySelectorAll(${JSON.stringify(sel)})].find((x) => ${re}.test(x.textContent) && !x.hidden && !x.disabled)`;
+    await hasta(`!!(${q})`, ms);
+    return ev(`(() => { const b = ${q}; if (b) b.click(); return !!b; })()`);
+  };
+  const videoListo = (sel = ".marcar-video") => hasta(`(() => { const v = document.querySelector(${JSON.stringify(sel)}); return !!v && v.readyState >= 2 && v.videoWidth > 0; })()`);
 
   // ---------------- GUARDIA: estado, botón grande, notas del relevo, asistente ----------------
   await cmd("Emulation.setGeolocationOverride", { latitude: 29.0729, longitude: -110.9559, accuracy: 9 });
+  // Cámara lenta: CAMARA_MS=3000 retrasa getUserMedia (un celular que tarda en abrir la cámara). Además registra cada stream abierto.
+  const camMs = Number(process.env.CAMARA_MS || 0);
+  await cmd("Page.addScriptToEvaluateOnNewDocument", { source: `(() => { const g = navigator.mediaDevices.getUserMedia.bind(navigator.mediaDevices); window.__streams = []; navigator.mediaDevices.getUserMedia = async (c) => { await new Promise((r) => setTimeout(r, window.__camMs ?? ${camMs})); const s = await g(c); window.__streams.push(s); return s; }; })();` });
   await cmd("Page.addScriptToEvaluateOnNewDocument", { source: `window.BarcodeDetector = class { constructor() {} async detect() { return [{ rawValue: "MPC1.siteA.1.AAAAAAAAAAAAAAAAAAAAAA" }]; } };` });
   await ir("/index.html?rol=guardia");
   const tarjeta = await texto("#contenido");
@@ -58,81 +73,90 @@ try {
   check("guardia: botón grande «MARCAR ENTRADA» (ventana abierta)", /MARCAR ENTRADA/i.test(tarjeta));
   check("guardia: ve las notas de entrega del turno anterior", /Notas de entrega de Gema Guardia/i.test(tarjeta) && /Llaves en caseta/.test(tarjeta));
 
+  await hasta("!!document.querySelector('.btn.grande')");
   await ev("document.querySelector('.btn.grande').click()");
-  await espera(300);
-  const intro = await texto(".marcar-caja");
+  const intro = await conTexto(".marcar-caja", /No se rastrea/);
   check("asistente: explica ubicación, QR y selfie antes de pedir permisos", /Ubicación/.test(intro) && /QR del puesto/.test(intro) && /Selfie/.test(intro) && /No se rastrea/.test(intro));
-  await ev("[...document.querySelectorAll('.marcar-caja button')].find((b) => /Comenzar/i.test(b.textContent)).click()");
-  await espera(1500);
-  const gps = await texto(".marcar-caja");
+  await clicBtn(/Comenzar/i);
+  const gps = await conTexto(".marcar-caja", /Estás a \d+ m del puesto|fuera del perímetro/);
   check("paso 1: GPS dentro del perímetro con precisión mostrada", /±9 m/.test(gps) && /Estás a \d+ m del puesto/.test(gps), gps.replace(/\n+/g, " ").slice(0, 120));
-  await ev("[...document.querySelectorAll('.marcar-caja button')].find((b) => /Continuar/i.test(b.textContent) && !b.hidden).click()");
-  await espera(2500); // QR (BarcodeDetector simulado) → pasa solo a la selfie
-  const selfie = await texto(".marcar-caja");
+  await clicBtn(/Continuar/i);
+  const selfie = await conTexto(".marcar-caja", /Selfie en vivo/i); // QR (BarcodeDetector simulado) → pasa solo a la selfie, tarde lo que tarde la cámara
   check("paso 2→3: el QR del puesto se reconoce y se abre la selfie en vivo", /Selfie en vivo/i.test(selfie));
-  check("paso 3: cámara frontal en vivo y SIN selector de archivos", (await ev("!!document.querySelector('.marcar-video') && document.querySelectorAll('input[type=file]').length === 0")) === true);
-  await espera(1500);
-  await ev("[...document.querySelectorAll('.marcar-caja button')].find((b) => /Tomar selfie/i.test(b.textContent)).click()");
-  await espera(1500);
+  check("paso 3: cámara frontal en vivo y SIN selector de archivos", (await videoListo()) && (await ev("document.querySelectorAll('input[type=file]').length === 0")) === true);
+  await clicBtn(/Tomar selfie/i);
+  await hasta("!!document.querySelector('.marcar-prev')");
   check("paso 4: vista previa de la selfie y resumen", (await ev("!!document.querySelector('.marcar-prev')")) === true && /QR del puesto escaneado/.test(await texto(".marcar-caja")));
-  await ev("window.__llamadas.length = 0; [...document.querySelectorAll('.marcar-caja button')].find((b) => /Registrar entrada/i.test(b.textContent)).click()");
-  await espera(1200);
+  await ev("window.__llamadas.length = 0");
+  await clicBtn(/Registrar entrada/i);
+  await hasta("window.__llamadas.some((l) => l.ruta === '/marcas/entrada')");
   const envio = JSON.parse(await ev("JSON.stringify(window.__llamadas.find((l) => l.ruta === '/marcas/entrada') || null)"));
   check("envío: POST /marcas/entrada con GPS, QR y selfie", Boolean(envio) && envio.body.turnoId === "t5" && envio.body.qr.startsWith("MPC1.siteA.") && Math.abs(envio.body.lat - 29.0729) < 0.001 && envio.body.precisionM > 0);
   const foto = Buffer.from(envio.body.foto, "base64");
   check("selfie: JPEG real (FFD8FF…FFD9) de ≤ ~100 KB", foto[0] === 0xff && foto[1] === 0xd8 && foto[2] === 0xff && foto[foto.length - 2] === 0xff && foto[foto.length - 1] === 0xd9 && foto.length <= 100 * 1024, `${Math.round(foto.length / 1024)} KB`);
   check("se envía la hora del dispositivo solo como dato informativo", typeof envio.body.horaDispositivoMs === "number");
-  check("al terminar el asistente se cierra", (await ev("!document.querySelector('.marcar-fondo')")) === true);
+  check("al terminar el asistente se cierra", (await hasta("!document.querySelector('.marcar-fondo')")) === true);
+  check("al terminar NO queda ninguna cámara abierta (todos los streams detenidos)", (await hasta("window.__streams.every((s) => s.getTracks().every((t) => t.readyState === 'ended'))")) === true);
 
   // Fuera del perímetro: el asistente no deja continuar
   await cmd("Emulation.setGeolocationOverride", { latitude: 29.09, longitude: -110.9559, accuracy: 9 });
   await ir("/index.html?rol=guardia");
+  await hasta("!!document.querySelector('.btn.grande')");
   await ev("document.querySelector('.btn.grande').click()");
-  await espera(300);
-  await ev("[...document.querySelectorAll('.marcar-caja button')].find((b) => /Comenzar/i.test(b.textContent)).click()");
-  await espera(1500);
-  const lejos = await texto(".marcar-caja");
+  await clicBtn(/Comenzar/i);
+  const lejos = await conTexto(".marcar-caja", /fuera del perímetro|Reintentar/i);
   check("fuera del perímetro: avisa y ofrece reintentar (sin continuar)", /fuera del perímetro/i.test(lejos) && (await ev("![...document.querySelectorAll('.marcar-caja button')].some((b) => /Continuar/i.test(b.textContent) && !b.hidden)")) === true, lejos.replace(/\n+/g, " ").slice(0, 160));
   await cmd("Emulation.setGeolocationOverride", { latitude: 29.0729, longitude: -110.9559, accuracy: 300 });
-  await ev("[...document.querySelectorAll('.marcar-caja button')].find((b) => /Reintentar/i.test(b.textContent) && !b.hidden).click()");
-  await espera(1500);
-  check("precisión peor que el radio: se rechaza en pantalla", /peor que el radio/i.test(await texto(".marcar-caja")));
+  await clicBtn(/Reintentar/i);
+  check("precisión peor que el radio: se rechaza en pantalla", /peor que el radio/i.test(await conTexto(".marcar-caja", /peor que el radio/i)));
+
+  // Cámara lenta + cancelar: una cámara que termina de abrir DESPUÉS de cancelar no debe quedar encendida
+  await cmd("Emulation.setGeolocationOverride", { latitude: 29.0729, longitude: -110.9559, accuracy: 9 });
+  await ir("/index.html?rol=guardia");
+  await ev("window.__camMs = 1500; window.__streams.length = 0");
+  await hasta("!!document.querySelector('.btn.grande')");
+  await ev("document.querySelector('.btn.grande').click()");
+  await clicBtn(/Comenzar/i);
+  await conTexto(".marcar-caja", /Estás a \d+ m del puesto/);
+  await clicBtn(/Continuar/i);
+  await ev("document.querySelector('.marcar-cab .btn-icono').click()"); // cancelar con la cámara aún abriéndose
+  await hasta("window.__streams.length >= 1", 30000); // la cámara termina de abrir DESPUÉS de cancelar (tarde lo que tarde)
+  check("cancelar con la cámara aún abriéndose (celular lento): ninguna cámara queda encendida", (await hasta("window.__streams.length >= 1 && window.__streams.every((s) => s.getTracks().every((t) => t.readyState === 'ended'))", 10000)) === true, await ev("JSON.stringify(window.__streams.map((s) => s.getTracks().map((t) => t.readyState)))"));
 
   // Sin conexión
   await cmd("Emulation.setGeolocationOverride", { latitude: 29.0729, longitude: -110.9559, accuracy: 9 });
   await ir("/index.html?rol=guardia");
+  await hasta("!!document.querySelector('.btn.grande')");
   await ev("document.querySelector('.btn.grande').click()");
-  await espera(300);
+  await hasta("!!document.querySelector('.marcar-caja')");
   await cmd("Network.enable");
   await cmd("Network.emulateNetworkConditions", { offline: true, latency: 0, downloadThroughput: 0, uploadThroughput: 0 });
   await ev("window.dispatchEvent(new Event('offline'))");
   await ev("Object.defineProperty(navigator, 'onLine', { configurable: true, get: () => false })");
-  await ev("[...document.querySelectorAll('.marcar-caja button')].find((b) => /Comenzar/i.test(b.textContent)).click()");
-  await espera(500);
-  check("sin conexión (Fase 6): el asistente ya NO se bloquea; avanza a la ubicación (el registro se guardará en la cola)", /Paso 1 de 4/i.test(await texto(".marcar-caja")));
+  await clicBtn(/Comenzar/i);
+  check("sin conexión (Fase 6): el asistente ya NO se bloquea; avanza a la ubicación (el registro se guardará en la cola)", /Paso 1 de 4/i.test(await conTexto(".marcar-caja", /Paso 1 de 4/i)));
   await cmd("Network.emulateNetworkConditions", { offline: false, latency: 0, downloadThroughput: -1, uploadThroughput: -1 });
 
   // ---------------- SUPERVISOR: panel de asistencia ----------------
   await ir("/index.html?rol=supervisor");
   const tabs = await ev("[...document.querySelectorAll('.tab-app')].map((b) => b.textContent).join(',')");
   check("supervisor: pestañas En vivo, Asistencia, Rondines, Incidencias, Visitantes, Bitácoras, Sin conexión, Alertas, Turnos y Mis sitios", tabs === "En vivo,Asistencia,Rondines,Incidencias,Visitantes,Bitácoras,Sin conexión,Alertas,Turnos,Mis sitios", tabs);
+  await hasta("!!document.querySelector('[data-clave=asistencia]')");
   await ev("document.querySelector('[data-clave=asistencia]').click()");
-  await espera(800);
-  const panel = await texto("#contenido");
+  const panel = await conTexto("#contenido", /Autorizar cierre sin relevo/i);
   check("supervisor: alerta «Relevo no llegó» con botón de autorizar cierre", /Relevo no llegó/i.test(panel) && /Autorizar cierre sin relevo/i.test(panel));
   check("supervisor: horas extra por autorizar", /Horas extra por autorizar/i.test(panel) && /Autorizar/i.test(panel));
   check("supervisor: ve solo SU sitio (no «Bodega Sur»)", !/Bodega Sur/.test(panel));
   await ev("document.querySelector('.alerta-caja .btn.peligro').click()");
-  await espera(300);
+  await hasta("!!document.querySelector('.modal textarea')");
   await ev("document.querySelector('.modal textarea').value = 'El relevo avisó que no llegará.'; document.querySelector('.modal form').requestSubmit()");
-  await espera(600);
+  await hasta("window.__llamadas.some((l) => l.ruta === '/relevo/autorizar-cierre')");
   const aut = JSON.parse(await ev("JSON.stringify(window.__llamadas.find((l) => l.ruta === '/relevo/autorizar-cierre') || null)"));
   check("autorizar cierre: envía motivo", Boolean(aut) && /no llegará/.test(aut.body.motivo));
   await ev("document.querySelector('[data-clave=asistencia]').click()");
-  await espera(900);
+  await hasta("[...document.querySelectorAll('button')].some((x) => x.textContent === 'Ajuste')");
   await ev("[...document.querySelectorAll('button')].find((x) => x.textContent === 'Ajuste').click()");
-  await espera(300);
-  const formAjuste = await texto(".modal");
+  const formAjuste = await conTexto(".modal", /Motivo/i);
   check("ajuste: formulario con tipo, hora y motivo obligatorio (la marca original no se edita)", /Motivo/i.test(formAjuste) && /no se modifica/i.test(formAjuste) && (await ev("document.querySelector('.modal textarea').required")) === true);
   await ev("document.querySelector('.modal .btn-icono').click()");
 
@@ -140,17 +164,16 @@ try {
   await ir("/index.html?rol=admin");
   const tabsA = await ev("[...document.querySelectorAll('.tab-app')].map((b) => b.textContent).join(',')");
   check("admin: pestañas incluyen Asistencia, Reportes y Empresa", /Asistencia/.test(tabsA) && /Reportes/.test(tabsA) && /Empresa/.test(tabsA), tabsA);
+  await hasta("!!document.querySelector('[data-clave=reportes]')");
   await ev("document.querySelector('[data-clave=reportes]').click()");
-  await espera(600);
+  await hasta("!!document.querySelector('#contenido form')");
   await ev("document.querySelector('#contenido form').requestSubmit()");
-  await espera(900);
-  const rep = await texto("#contenido");
+  const rep = await conTexto("#contenido", /Resumen por guardia/i);
   check("reporte: resumen por guardia, acumulado semanal y exceso de límite", /Resumen por guardia/i.test(rep) && /Gael Guardia/i.test(rep) && /EXCEDE/i.test(rep), rep.replace(/\n+/g, " ").slice(0, 160));
   const csv = await ev(`(async () => { const m = await import('/js/vistas/reportes.js'); return m.aCsv([{ fecha: '2026-10-05', sitioNombre: '=HYPERLINK("x")', guardiaNombre: 'Gael, "G"', inicioMs: 1790000000000, finMs: 1790040000000, estado: 'cumplido', entradaMs: 1790000100000, salidaMs: null, retardo: true, retardoMin: 15, falta: false, minutosExtra: 0, ajustes: 0, relevoAlerta: false }]); })()`);
   check("CSV: neutraliza fórmulas (=…) y escapa comas/comillas, con BOM UTF-8", csv.startsWith("\ufeff") && /'=HYPERLINK/.test(csv) && /"Gael, ""G"""/.test(csv));
   await ev("document.querySelector('[data-clave=empresa]').click()");
-  await espera(600);
-  const emp = await texto("#contenido");
+  const emp = await conTexto("#contenido", /Límite legal de horas extra/);
   check("empresa: ventana de entrada, tolerancia de relevo y límites de horas extra por año", /Ventana de entrada/.test(emp) && /Tolerancia de relevo/.test(emp) && /Límite legal de horas extra/.test(emp)
     && (await ev("document.querySelectorAll('.limite-fila').length")) === 2);
 

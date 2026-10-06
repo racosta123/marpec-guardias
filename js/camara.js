@@ -78,7 +78,7 @@ export function escanearQr(video, alDetectar) {
     } catch { /* un cuadro fallido no detiene el escaneo */ }
     if (activo) setTimeout(ciclo, 200);
   }
-  ciclo();
+  setTimeout(ciclo, 0); // no sincrónico: quien llama debe recibir primero la función para detener, aunque el QR ya esté a la vista
   return () => { activo = false; };
 }
 

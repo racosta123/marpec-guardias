@@ -1,6 +1,7 @@
 // Pruebas de seguridad y de negocio de la FASE 5 EN REAL (incidencias, visitantes, bitácora, retención).
 // Uso: node tools/e2e-real-fase5.mjs <uid-admin>     (tarda ~8 min: espera al cron de retención, que corre cada 5 min)
 // Crea datos de PRUEBA (prueba=true): node tools/borrar-pruebas.mjs --aplicar
+import "./_referer.mjs"; // la clave web está restringida por Referer
 import { execSync } from "node:child_process";
 import { createSign, randomBytes, randomInt } from "node:crypto";
 import { readFileSync, rmSync, writeFileSync } from "node:fs";

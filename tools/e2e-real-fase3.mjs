@@ -1,6 +1,7 @@
 // Pruebas de seguridad y de negocio de la FASE 3 EN REAL (Firebase + Worker + R2 desplegados).
 // Uso: node tools/e2e-real-fase3.mjs <uid-admin>      (tarda ~4 min: espera a que termine un turno de prueba)
 // Crea datos de PRUEBA (marcados prueba=true por herencia del sitio): node tools/borrar-pruebas.mjs --aplicar
+import "./_referer.mjs"; // la clave web está restringida por Referer
 import { execSync } from "node:child_process";
 import { createSign, randomBytes, randomInt } from "node:crypto";
 import { readFileSync, rmSync } from "node:fs";
