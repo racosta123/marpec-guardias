@@ -463,8 +463,8 @@ const pAltaPC = () => pcWrap('personal', `
       <label class="sw"><input type="checkbox" checked> Cuenta activa al crearla</label>
       <label class="chk"><input type="checkbox"> Marcar como guardia de prueba</label></div></div>
     <div style="display:flex;flex-direction:column;gap:12px">
-      <div class="al c-info">${ic('info', 20)}<div class="cuerpo"><b>Antes de entregar el PIN</b>El PIN solo se muestra al crearlo. Si el guardia lo olvida, se restablece desde Personal.</div></div>
-      <div class="al c-warn">${ic('alertas', 20)}<div class="cuerpo"><b>Tres intentos fallidos</b>Después de varios PIN incorrectos el acceso se bloquea hasta que lo desbloquees.</div></div></div></div>`);
+      <div class="al c-info">${ic('info', 20)}<div class="cuerpo"><b>Antes de entregar el PIN</b>El PIN lo defines tú: entrégaselo al guardia en persona. Si lo olvida, se restablece desde Personal.</div></div>
+      <div class="al c-warn">${ic('alertas', 20)}<div class="cuerpo"><b>Cinco intentos fallidos</b>Después de 5 PIN incorrectos el acceso se bloquea 15 minutos. Puedes desbloquearlo antes desde Personal.</div></div></div></div>`);
 const pAltaMV = () => mvWrap('Administración', `
   <div><div class="mig">${ic('atras', 16)}Personal</div><div class="ph"><div><h1>Alta de guardia</h1><p>Entra con número de empleado y PIN.</p></div></div></div>
   <div class="tabs" role="tablist"><button class="tab" role="tab" aria-selected="true">Guardia</button><button class="tab" role="tab" aria-selected="false">Supervisor</button></div>
@@ -474,7 +474,7 @@ const pAltaMV = () => mvWrap('Administración', `
     <label class="sw"><input type="checkbox" checked> Cuenta activa al crearla</label>
     <label class="chk"><input type="checkbox"> Marcar como guardia de prueba</label>
     ${btn('Crear guardia', 'pri', 'masusr', 'blk')}${btn('Cancelar', 'sec', '', 'blk')}</div>
-  <div class="al c-info">${ic('info', 20)}<div class="cuerpo"><b>Antes de entregar el PIN</b>Solo se muestra al crearlo. Si lo olvida, se restablece desde Personal.</div></div>`);
+  <div class="al c-info">${ic('info', 20)}<div class="cuerpo"><b>Antes de entregar el PIN</b>Tú lo defines: entrégaselo en persona. Si lo olvida, se restablece desde Personal.</div></div>`);
 
 /* ---------- PANTALLA c: Incidencia con seguimiento + modal ---------- */
 const seg = `<ol class="lin">
