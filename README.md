@@ -10,7 +10,7 @@ PWA de control de guardias para MARPEC Seguridad Privada. **Fase 6 de 7:** acces
 
 ```bash
 npm install                 # solo herramientas de build/test
-npm run build:vendor        # regenera js/vendor/firebase.js y fonts/
+npm run build:vendor        # regenera js/vendor/ (Firebase, QR, Leaflet), css/vendor/ y fonts/
 npm run test:worker         # pruebas del Worker (sin red; Google simulado)
 npm run test:rules          # reglas con el emulador de Firebase (requiere Java)
 npm run audit               # npm audit + búsqueda de secretos (árbol y historial git)

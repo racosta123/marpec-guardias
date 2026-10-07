@@ -14,6 +14,7 @@ const PC = { width: 1440, height: 900, deviceScaleFactor: 1, mobile: false };
 const CLAVES = ["vivo", "asistencia", "rondines", "incidencias", "visitantes", "bitacoras", "offline", "alertas", "turnos", "sitios", "personal", "reportes", "empresa", "bitacora"];
 const LIBRO = (re) => `[...document.querySelectorAll('.libro-btn')].find((b) => ${re}.test(b.textContent)).click()`;
 const G = "/index.html?rol=guardia&entrada=1&hace=4.1";
+const FORM_SITIO = (extra = "") => `(async () => { const w = (ms) => new Promise((r) => setTimeout(r, ms)); document.querySelector('[data-clave=sitios]').click(); await w(800); [...document.querySelectorAll('button')].find((b) => b.textContent.includes('+ Sitio')).click(); await w(300); const i = document.querySelector('.ubicacion .enlace-fila input'); i.value = '29.0729, -110.9559'; document.querySelector('.ubicacion .enlace-fila button').click(); ${extra} })()`;
 const ESCENAS = [
   ["guardia en turno", G, CEL], ["guardia sin marcar", "/index.html?rol=guardia", CEL], ["guardia sin conexión", `${G}&offline=1`, CEL],
   ["marcar (intro)", "/index.html?rol=guardia", CEL, "document.querySelector('.btn.grande').click()"],
@@ -21,6 +22,10 @@ const ESCENAS = [
   ["rondín", G, CEL, "[...document.querySelectorAll('button')].find((b) => /INICIAR RONDÍN/.test(b.textContent)).click()"],
   ["vivo con pánico", "/index.html?rol=admin&demo=vivo", PC], ["vivo sin pánico", "/index.html?rol=admin&demo=vivo&sinpanico=1", PC], ["vivo celular", "/index.html?rol=admin&demo=vivo&sinpanico=1", CEL],
   ["login", "/index.html?rol=ninguno", CEL], ["demo concluida", "/index.html?rol=guardia&lic=vencida", CEL], ["banner de licencia", "/index.html?rol=admin&lic=d5", PC], ["privacidad", "/privacidad.html", CEL],
+  ...[["PC", PC], ["celular", CEL]].flatMap(([t, v]) => [
+    [`formulario de sitio con ubicación (${t})`, "/index.html?rol=admin", v, FORM_SITIO()],
+    [`ventana «Elegir en el mapa» (${t})`, "/index.html?rol=admin", v, FORM_SITIO("await w(300); [...document.querySelectorAll('.ubicacion button')].find((b) => /Elegir en el mapa/.test(b.textContent)).click(); await w(2500);")],
+  ]),
   ...CLAVES.map((k) => [`sección ${k}`, "/index.html?rol=admin", PC, `document.querySelector('[data-clave=${k}]').click()`]),
 ];
 

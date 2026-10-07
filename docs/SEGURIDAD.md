@@ -30,7 +30,7 @@
 - CSP por `<meta>` (GitHub Pages no permite encabezados): scripts, estilos, fuentes e imágenes solo del propio origen; conexiones solo a Firebase y al Worker. Sin estilos ni scripts en línea.
 - Firebase Auth se inicializa **sin** `popupRedirectResolver`, para que el SDK no cargue `apis.google.com`.
 - El Service Worker no intercepta ni cachea nada que no sea del propio origen (ni Worker ni Firebase).
-- Sin dependencias de terceros en ejecución: SDK de Firebase empaquetado en `js/vendor/firebase.js`, fuentes Barlow en `fonts/`.
+- Sin dependencias de terceros en ejecución, **con una sola excepción documentada**: las imágenes del mapa de «Elegir en el mapa» (ver «Mapa para elegir ubicación»). SDK de Firebase en `js/vendor/firebase.js`, Leaflet en `js/vendor/leaflet.js`, fuentes Inter en `fonts/`.
 
 ## Riesgos conocidos / pendientes
 1. **Denegación dirigida:** un atacante que conozca un número de empleado puede bloquearlo 15 min (5 fallos). Mitigado por el límite por IP; aceptado a cambio de proteger el PIN corto. Fase futura: alerta al supervisor.
@@ -166,6 +166,16 @@
 ### Panel en vivo (supervisor y admin)
 - Listeners de Firestore (`onSnapshot`) sin botón de actualizar: estado de cada puesto (cubierto, descubierto, en rondín, alerta, pánico), alertas activas y últimos eventos; sin mapas ni librerías externas. Se recalcula también cada 30 s (turnos que empiezan, rondines que vencen).
 - **Aislamiento por reglas:** cada colección que escucha el panel (`turnos`, `asistencias`, `rondines`, `incidenciasResumen`, `visitantesVista`, `panicoVista`, `offlineVista`) autoriza al supervisor solo si `supervisorUid == su uid`; las consultas deben filtrar por ese campo y **cualquier escucha que pueda traer sitios ajenos (o sin filtro) se rechaza completa** (probado con el emulador: la escucha propia recibe en tiempo real; la ajena y la que no filtra reciben `permission-denied` y cero documentos). El guardia no puede escuchar nada de esto. Dar de baja a alguien corta su escucha al instante (el perfil se consulta en cada lectura). Si se reasigna el supervisor de un sitio, lo **pendiente** (alertas activas y registros por revisar) pasa al nuevo.
+
+## Mapa para elegir ubicación (administración)
+Formularios de **Sitio** y de **Punto de rondín**, solo admin/supervisor: botón «Elegir en el mapa» y campo «Pegar enlace de Google Maps o coordenadas». El guardia y el Worker no cambian.
+- **⚠ DEPENDENCIA EXTERNA INEVITABLE — OpenStreetMap:** las imágenes (mosaicos) del mapa se piden al servidor estándar `https://tile.openstreetmap.org`. Ese servidor ve la **dirección IP** de quien abre el mapa, el **User-Agent** y la **zona geográfica** que se mira (coordenadas de los mosaicos `z/x/y`), y recibe como `Referer` solo el **origen** de la app (`referrerpolicy="origin"` en esas imágenes; el resto de la app sigue con `no-referrer`), que su política de uso exige. No se envían datos de la cuenta, nombres ni los valores de los campos. Es la única llamada a un tercero que hace la interfaz en ejecución.
+- **Política de seguridad (CSP):** solo se agregó ese host exacto a `img-src` (`index.html` y los encabezados de Netlify generados por `tools/preparar-netlify.mjs`). `script-src`, `style-src`, `connect-src` y demás quedan igual; sigue sin haber estilos ni scripts en línea (Leaflet solo escribe estilos por la API del DOM).
+- **Sin geocodificadores:** no hay buscador de direcciones ni ninguna otra consulta a terceros. El enlace o las coordenadas pegadas se interpretan **localmente** (`js/ubicacion.js`, sin red). Los enlaces cortos de Google (`maps.app.goo.gl`) no se resuelven (requeriría red): la pantalla pide el enlace largo o las coordenadas.
+- **Carga perezosa:** Leaflet 1.9.4 (BSD-2-Clause, vendorizado en `js/vendor/leaflet.js`, `css/vendor/leaflet.css` y licencia en `js/vendor/LICENSE-leaflet-BSD-2-Clause.txt`) y las imágenes se descargan **solo al abrir la ventana del mapa**. Ni el JS/CSS de Leaflet ni las imágenes están en la lista de precarga del service worker; las imágenes de OpenStreetMap son de otro origen y el service worker **nunca** las cachea.
+- **Atribución:** «© OpenStreetMap contributors» (con enlace a su licencia) visible en el mapa, como exige la licencia ODbL.
+- **Sin conexión o con el servidor de mapas bloqueado:** el mapa muestra un aviso y se puede seguir usando el enlace/coordenadas o escribir los números. Uso moderado: es el servidor comunitario de OpenStreetMap, sin garantía de disponibilidad; si MARPEC lo usara de forma intensiva habría que contratar un proveedor de mosaicos o alojar los propios.
+- **Precisión:** al capturar con el GPS, si es peor que ±100 m se avisa («Precisión baja…»); una ubicación elegida en el mapa o pegada se guarda sin precisión de GPS.
 
 ### Riesgos pendientes de la Fase 6
 1. **Hora estimada manipulable:** un guardia podría mover el reloj de su celular y sincronizar a su conveniencia dentro de la ventana permitida (≤ 12 h y dentro del turno). Mitigación: se guardan las tres horas, la bandeja de revisión las muestra y el supervisor acepta o ajusta con motivo; los demás controles (QR, GPS, selfie) no se pueden falsificar sin conexión.

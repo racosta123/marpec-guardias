@@ -1,6 +1,7 @@
 // Puntos de control y programación del rondín de un sitio (admin y supervisor de ese sitio).
 import { collection, doc, getDoc, getDocs, query, where } from "../vendor/firebase.js";
 import { accion, campo, confirmar, h, limpiar, modal, poner, toast } from "../ui.js";
+import { controlesUbicacion, mensajePrecision } from "../ubicacion.js";
 
 export async function vistaPuntos(raiz, ctx, sitio, volver) {
   const { db, api } = ctx;
@@ -84,16 +85,17 @@ export async function vistaPuntos(raiz, ctx, sitio, volver) {
       estadoGps.textContent = "Obteniendo ubicación…";
       navigator.geolocation.getCurrentPosition((pos) => {
         lat.value = pos.coords.latitude.toFixed(6); lng.value = pos.coords.longitude.toFixed(6); precision = pos.coords.accuracy;
-        estadoGps.textContent = `Capturada con precisión de ±${Math.round(precision)} m${precision > 25 ? " — mejor acércate a cielo abierto y repite" : ""}.`;
+        estadoGps.textContent = mensajePrecision(precision) || `Capturada con precisión de ±${Math.round(precision)} m.`;
         btnGps.disabled = false;
       }, (err) => { estadoGps.textContent = err.code === 1 ? "Permiso de ubicación denegado." : "No se pudo obtener la ubicación."; btnGps.disabled = false; }, { enableHighAccuracy: true, timeout: 20000, maximumAge: 0 });
     });
+    const { btnMapa, bloqueEnlace } = controlesUbicacion({ lat, lng, radio, estado: estadoGps, alElegir: (la, lo) => { lat.value = la.toFixed(6); lng.value = lo.toFixed(6); precision = null; } });
     lat.addEventListener("input", () => { precision = null; });
     lng.addEventListener("input", () => { precision = null; });
     const quitarGps = h("button", { class: "btn chico secundario", type: "button", onclick: () => { lat.value = ""; lng.value = ""; precision = null; estadoGps.textContent = "Sin GPS: bastará escanear el QR."; } }, "Quitar GPS");
     const f = h("form", { class: "form", novalidate: true },
       campo("Nombre del punto", nombre), campo("Descripción (dónde está)", desc),
-      h("fieldset", { class: "ubicacion" }, h("legend", {}, "GPS del punto (opcional)"), btnGps, quitarGps, estadoGps,
+      h("fieldset", { class: "ubicacion" }, h("legend", {}, "GPS del punto (opcional)"), h("div", { class: "acciones-ubic" }, btnGps, btnMapa, quitarGps), bloqueEnlace, estadoGps,
         h("div", { class: "dos" }, campo("Latitud", lat), campo("Longitud", lng)),
         campo("Radio (metros)", radio, "Por defecto 30 m (5 a 200).")),
       edit ? h("label", { class: "check" }, activo, " Punto activo") : null,

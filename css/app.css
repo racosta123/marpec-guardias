@@ -600,3 +600,26 @@ body[data-rol="guardia"] .instalar-barra { background: var(--navy); }
 }
 @media (prefers-reduced-motion: reduce) { .tabs-app { transition: none !important; } }
 @media (max-width: 380px) { .g-turno-fila { grid-template-columns: 1fr; } .g-turno-col + .g-turno-col { padding: 10px 0 0; border-left: 0; border-top: 1px solid var(--line); margin-top: 10px; } .g-accion .g-accion-t { font-size: 1.3rem; } }
+
+/* ---- Elegir en el mapa (administración; Leaflet se carga solo al abrir la ventana: css/vendor/leaflet.css) ---- */
+.enlace-fila { display: flex; gap: 8px; align-items: stretch; }
+.enlace-fila input { flex: 1 1 auto; }
+.enlace-fila .btn { flex: none; }
+.ubicacion .campo, .ubicacion > .btn { margin-top: 10px; }
+.modal.modal-mapa { max-width: 760px; }
+.mapa-lienzo { width: 100%; height: min(40dvh, 440px); min-height: 250px; border: 2px solid var(--line-2); border-radius: 12px; background: #E8EEF5; overflow: hidden; position: relative; z-index: 0; touch-action: none; }
+.mapa-barra { display: flex; gap: 10px; align-items: flex-end; margin-top: 10px; }
+.mapa-radio { flex: 1 1 auto; margin: 0; }
+.mapa-lectura { display: block; margin-top: 8px; font-weight: 600; color: var(--navy); font-variant-numeric: tabular-nums; }
+.mapa-priv { font-size: .8rem; }
+.mapa-cuerpo .acciones { margin-top: 12px; }
+/* Pin dibujado con CSS (sin imágenes): gota con punta hacia abajo */
+.pin-mapa::before { content: ""; position: absolute; left: 2px; top: 0; width: 26px; height: 26px; box-sizing: border-box; background: var(--rojo-pan); border: 3px solid #fff; border-radius: 50% 50% 50% 0; transform: rotate(-45deg); transform-origin: 50% 50%; box-shadow: 0 1px 4px rgba(0, 0, 0, .5); top: 4px; }
+.pin-mapa::after { content: ""; position: absolute; left: 11px; top: 13px; width: 8px; height: 8px; background: #fff; border-radius: 50%; }
+.pin-mapa { cursor: grab; }
+.leaflet-container { font: inherit; }
+.leaflet-container .leaflet-control-attribution { font-size: 12px; background: rgba(255, 255, 255, .92); color: var(--text); padding: 2px 6px; }
+.leaflet-container .leaflet-control-attribution a { color: var(--azul-txt); text-decoration: underline; }
+.leaflet-touch .leaflet-bar a { width: 40px; height: 40px; line-height: 40px; }
+.acciones-ubic { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.acciones-ubic .btn { width: auto; padding: 0 14px; }

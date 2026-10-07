@@ -29,27 +29,33 @@ export function toast(mensaje, tipo = "ok") {
   setTimeout(() => t.remove(), tipo === "error" ? 7000 : 3500);
 }
 
-// Modal accesible. `contenido` es un nodo; devuelve { cerrar }.
-export function modal(titulo, contenido) {
+// Modal accesible. `contenido` es un nodo; devuelve { cerrar, caja }.
+// opciones: { clase } (clase extra de la caja), { alCerrar } (se llama una vez al cerrar, por cualquier vía),
+// { escCapturado } (Esc cierra SOLO este modal aunque haya otro debajo: ventanas anidadas).
+export function modal(titulo, contenido, { clase = "", alCerrar = null, escCapturado = false } = {}) {
   const previo = document.activeElement;
   const fondo = h("div", { class: "modal-fondo" });
-  const caja = h("div", { class: "modal", role: "dialog", "aria-modal": "true", "aria-label": titulo },
+  const caja = h("div", { class: `modal${clase ? " " + clase : ""}`, role: "dialog", "aria-modal": "true", "aria-label": titulo },
     h("div", { class: "modal-cab" },
       h("h2", {}, titulo),
       h("button", { class: "btn-icono", type: "button", "aria-label": "Cerrar", onclick: () => cerrar() }, "✕")),
     contenido);
   fondo.append(caja);
-  const tecla = (e) => { if (e.key === "Escape") cerrar(); };
+  const tecla = (e) => { if (e.key === "Escape") { if (escCapturado) e.stopPropagation(); cerrar(); } };
+  let cerrado = false;
   function cerrar() {
-    document.removeEventListener("keydown", tecla);
+    if (cerrado) return;
+    cerrado = true;
+    document.removeEventListener("keydown", tecla, escCapturado);
     fondo.remove();
     previo?.focus?.();
+    alCerrar?.();
   }
   fondo.addEventListener("mousedown", (e) => { if (e.target === fondo) cerrar(); });
-  document.addEventListener("keydown", tecla);
+  document.addEventListener("keydown", tecla, escCapturado);
   document.body.append(fondo);
   (caja.querySelector("input,select,textarea,button.primario") || caja).focus();
-  return { cerrar };
+  return { cerrar, caja };
 }
 
 export function confirmar(titulo, mensaje, etiqueta = "Confirmar", peligro = false) {

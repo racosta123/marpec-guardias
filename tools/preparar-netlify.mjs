@@ -32,7 +32,7 @@ writeFileSync(mf, readFileSync(mf, "utf8").replace('"id": "/marpec-guardias/"', 
 
 // 3) Encabezados de seguridad equivalentes a los del Worker (GitHub Pages solo permitía meta; Netlify sí permite encabezados).
 const worker = /workerUrl:\s*"([^"]+)"/.exec(readFileSync(join(salida, "js/config.js"), "utf8"))[1];
-const csp = `default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' data: blob:; font-src 'self'; connect-src 'self' ${origen} https://identitytoolkit.googleapis.com https://securetoken.googleapis.com https://firestore.googleapis.com ${worker}; manifest-src 'self'; worker-src 'self'; base-uri 'none'; form-action 'none'; object-src 'none'; frame-ancestors 'none'`;
+const csp = `default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' data: blob: https://tile.openstreetmap.org; font-src 'self'; connect-src 'self' ${origen} https://identitytoolkit.googleapis.com https://securetoken.googleapis.com https://firestore.googleapis.com ${worker}; manifest-src 'self'; worker-src 'self'; base-uri 'none'; form-action 'none'; object-src 'none'; frame-ancestors 'none'`;
 writeFileSync(join(salida, "_headers"), `/*
   Content-Security-Policy: ${csp}
   X-Content-Type-Options: nosniff

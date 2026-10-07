@@ -1,11 +1,11 @@
 // Service worker: solo cachea el "cascarón" estático de la app (HTML/CSS/JS/fuentes/logo).
 // NUNCA intercepta ni cachea peticiones al Worker ni a Firebase (credenciales y datos).
-const VERSION = "marpec-v12";
+const VERSION = "marpec-v13";
 const SHELL = [
   "./", "index.html", "privacidad.html", "manifest.webmanifest", "marpec-logo.png",
   "icons/icon-192.png", "icons/icon-512.png", "icons/icon-maskable-512.png", "icons/apple-touch-icon-180.png",
   "css/app.css", "js/app.js", "js/instalar.js", "js/camara.js", "js/config.js", "js/api.js", "js/ui.js", "js/tz.js", "js/qr-page.js",
-  "js/vistas/guardia.js", "js/vistas/personal.js", "js/vistas/sitios.js", "js/vistas/turnos.js", "js/vistas/empresa.js", "js/vistas/bitacora.js", "js/vistas/asistencia.js", "js/vistas/reportes.js", "js/vistas/marcar.js", "js/vistas/rondin.js", "js/vistas/libro.js", "js/vistas/incidencias.js", "js/vistas/visitantes.js", "js/vistas/bitacoras.js", "aviso-visitantes.html", "js/aviso-visitantes.js", "js/vistas/rondines.js", "js/vistas/puntos.js", "js/cola.js", "js/envio.js", "js/panico.js", "js/alertas.js", "js/licencia.js", "js/iconos.js", "js/notificaciones.js", "js/rondin-local.js", "js/vivo-estado.js", "js/vistas/vivo.js", "js/vistas/offline.js", "js/vistas/alertas.js", "js/punto-qr-page.js", "punto-qr.html",
+  "js/vistas/guardia.js", "js/vistas/personal.js", "js/vistas/sitios.js", "js/vistas/turnos.js", "js/vistas/empresa.js", "js/vistas/bitacora.js", "js/vistas/asistencia.js", "js/vistas/reportes.js", "js/vistas/marcar.js", "js/vistas/rondin.js", "js/vistas/libro.js", "js/vistas/incidencias.js", "js/vistas/visitantes.js", "js/vistas/bitacoras.js", "aviso-visitantes.html", "js/aviso-visitantes.js", "js/vistas/rondines.js", "js/vistas/puntos.js", "js/cola.js", "js/envio.js", "js/panico.js", "js/alertas.js", "js/licencia.js", "js/iconos.js", "js/notificaciones.js", "js/rondin-local.js", "js/vivo-estado.js", "js/vistas/vivo.js", "js/vistas/offline.js", "js/vistas/alertas.js", "js/punto-qr-page.js", "punto-qr.html", "js/ubicacion.js",
   "js/vendor/firebase.js", "js/vendor/qr.js", "js/vendor/jsqr.js", "qr.html",
   "fonts/inter-400.woff2", "fonts/inter-500.woff2", "fonts/inter-600.woff2", "fonts/inter-700.woff2",
 
@@ -26,7 +26,7 @@ self.addEventListener("activate", (e) => {
 self.addEventListener("fetch", (e) => {
   const req = e.request;
   const url = new URL(req.url);
-  if (req.method !== "GET" || url.origin !== self.location.origin) return; // todo lo externo va directo a la red
+  if (req.method !== "GET" || url.origin !== self.location.origin) return; // todo lo externo va directo a la red (incluye los mosaicos de OpenStreetMap: NO se cachean)
 
   // Navegación: red primero, con respaldo offline.
   if (req.mode === "navigate") {

@@ -2,6 +2,7 @@
 import { collection, getDocs, query, where } from "../vendor/firebase.js";
 import { vistaPuntos } from "./puntos.js";
 import { accion, campo, confirmar, h, limpiar, modal, toast, poner } from "../ui.js";
+import { controlesUbicacion, mensajePrecision } from "../ubicacion.js";
 
 export async function cargarSitios({ db, user }) {
   const col = collection(db, "sitios");
@@ -81,8 +82,8 @@ export async function vistaSitios(raiz, ctx) {
           lat.value = pos.coords.latitude.toFixed(6);
           lng.value = pos.coords.longitude.toFixed(6);
           precision = pos.coords.accuracy;
-          const mala = precision > 50 ? " — precisión baja; acércate a cielo abierto y vuelve a intentar." : "";
-          estadoGps.textContent = `Ubicación capturada con precisión de ±${Math.round(precision)} m${mala}`;
+          const mala = mensajePrecision(precision);
+          estadoGps.textContent = mala || `Ubicación capturada con precisión de ±${Math.round(precision)} m.`;
           btnGps.disabled = false;
         },
         (err) => {
@@ -91,6 +92,7 @@ export async function vistaSitios(raiz, ctx) {
         },
         { enableHighAccuracy: true, timeout: 20000, maximumAge: 0 });
     });
+    const { btnMapa, bloqueEnlace } = controlesUbicacion({ lat, lng, radio, estado: estadoGps, alElegir: (la, lo) => { lat.value = la.toFixed(6); lng.value = lo.toFixed(6); precision = null; } });
     lat.addEventListener("input", () => { precision = null; });
     lng.addEventListener("input", () => { precision = null; });
 
@@ -99,7 +101,7 @@ export async function vistaSitios(raiz, ctx) {
       campo("Supervisor asignado", sup), campo("Consignas del puesto", consignas, "Lo verá el guardia al iniciar su turno."),
       campo("Teléfono de emergencia del sitio", telefono, "Es el número que el guardia puede marcar desde el botón de pánico cuando no hay internet (normalmente el del supervisor)."),
       h("fieldset", { class: "ubicacion" }, h("legend", {}, "Ubicación y perímetro"),
-        btnGps, estadoGps,
+        h("div", { class: "acciones-ubic" }, btnGps, btnMapa), bloqueEnlace, estadoGps,
         h("div", { class: "dos" }, campo("Latitud", lat), campo("Longitud", lng)),
         campo("Radio del perímetro (metros)", radio, "Por defecto 100 m. Entre 20 y 1000.")),
       edit ? h("label", { class: "check" }, activo, " Sitio activo") : null,

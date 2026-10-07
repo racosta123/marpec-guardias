@@ -42,7 +42,7 @@ Se reclama de forma atómica: la segunda llamada responde `404` para siempre. De
 
 ## Reconstruir lo vendorizado
 
-`npm install && npm run build:vendor` regenera `js/vendor/firebase.js` y `fonts/` desde `node_modules` (solo desarrollo; no se carga nada de terceros en ejecución).
+`npm install && npm run build:vendor` regenera `js/vendor/firebase.js`, `js/vendor/leaflet.js` + `css/vendor/leaflet.css` y `fonts/` desde `node_modules` (solo desarrollo; en ejecución solo se piden a un tercero las imágenes del mapa de administración: ver docs/SEGURIDAD.md).
 
 ## Fase 2 — pasos de despliegue
 
