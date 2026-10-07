@@ -416,8 +416,6 @@ body[data-rol="guardia"] .instalar-barra { background: var(--navy); }
 .t-txt p { margin: 2px 0 0; color: var(--muted); font-size: .92rem; white-space: pre-wrap; }
 .seguimiento { margin: 6px 0 0; padding-left: 18px; font-size: .92rem; display: grid; gap: 6px; }
 .seguimiento p { margin: 2px 0 0; white-space: pre-wrap; }
-.filtros-incidencias { display: grid; gap: 8px; grid-template-columns: 1fr; margin-bottom: 12px; }
-@media (min-width: 700px) { .filtros-incidencias { grid-template-columns: repeat(3, 1fr); } .filtros-incidencias .dos { grid-column: 1 / -1; } }
 .tipo-fila { display: grid; grid-template-columns: 1fr auto; gap: 10px; align-items: center; margin-top: 6px; }
 .tipo-fila .check { margin-top: 0; }
 
@@ -623,3 +621,97 @@ body[data-rol="guardia"] .instalar-barra { background: var(--navy); }
 .leaflet-touch .leaflet-bar a { width: 40px; height: 40px; line-height: 40px; }
 .acciones-ubic { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
 .acciones-ubic .btn { width: auto; padding: 0 14px; }
+
+/* ---- Ronda 2 del rediseño: componentes de la guía de estilo (js/tabla.js). Piloto: Asistencia e Incidencias ---- */
+.pag-cab { display: flex; flex-wrap: wrap; gap: 10px 16px; align-items: flex-start; justify-content: space-between; margin-bottom: 14px; }
+.pag-cab h2 { color: var(--navy); font-size: 1.5rem; }
+.pag-sub { color: var(--muted); font-size: .92rem; margin: 2px 0 0; }
+/* Indicadores: fondo suave del color del estado, ícono en chip de 44 px, número grande (todos los textos ≥ 6.4:1) */
+.ind-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; margin-bottom: 14px; }
+.ind { display: flex; gap: 12px; align-items: center; padding: 14px 16px; border-radius: var(--radius); background: var(--cs); border: 1px solid var(--cb); color: var(--ct); min-width: 0; }
+.ind .chip { width: 44px; height: 44px; border-radius: 12px; background: var(--cf); color: #fff; display: grid; place-items: center; flex: none; }
+.ind .n { display: block; font-size: 2rem; font-weight: 700; line-height: 1.05; font-variant-numeric: tabular-nums; }
+.ind .t-c { display: none; }
+.ind .t { display: block; font-size: .86rem; font-weight: 600; line-height: 1.25; }
+.ind.azul { --cs: var(--azul-claro); --cb: #BFDBFE; --ct: var(--azul-txt); --cf: var(--azul-fill); }
+.ind.verde { --cs: var(--verde-claro); --cb: #BBF7D0; --ct: var(--verde-txt); --cf: var(--verde-fill); }
+.ind.ambar { --cs: var(--ambar-claro); --cb: #FDE68A; --ct: var(--navy-900); --cf: var(--ambar); }
+.ind.ambar .chip { color: var(--navy-900); }
+.ind.rojo { --cs: var(--rojo-claro); --cb: #FECACA; --ct: var(--rojo-txt); --cf: var(--rojo-fill); }
+.ind.neutro { --cs: #EEF2F7; --cb: var(--line-2); --ct: #334155; --cf: var(--navy); }
+/* Tarjeta de filtros: cada control con su etiqueta visible; los campos de fecha ya no se cortan */
+.fcard { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); box-shadow: var(--sombra); padding: 14px 16px; margin-bottom: 14px; display: grid; gap: 12px; align-items: end; grid-template-columns: repeat(auto-fit, minmax(172px, 1fr)); }
+.fcard .campo { margin: 0; display: grid; gap: 6px; align-content: end; }
+.fcard .campo-et { margin: 0; }
+.fcard input, .fcard select { width: 100%; min-width: 0; height: 46px; min-height: 46px; font-size: .95rem; padding-inline: 10px; }
+.fcard .btn { min-height: 46px; width: 100%; }
+/* Tablas: tira de color por estado, avatar con iniciales, etiquetas; en celular cada fila es una tarjeta */
+.tcard2 { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); box-shadow: var(--sombra); overflow: hidden; margin-bottom: 14px; }
+.tcard2 > header { display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: 12px 16px; border-bottom: 1px solid var(--line); }
+.tcard2 > header h3 { color: var(--navy); font-size: 1.05rem; margin: 0; }
+.tcard2 .cuenta { color: var(--muted); font-size: .88rem; }
+.tabla-g { list-style: none; margin: 0; padding: 0; }
+.tabla-g .cab-t, .tabla-g .fila { display: grid; gap: 6px 14px; align-items: center; padding: 10px 14px 10px 12px; }
+.tabla-g .cab-t { border-left: 4px solid transparent; }
+.tabla-g .fila { border-left: 4px solid var(--tira); }
+.tabla-asistencia .cab-t, .tabla-asistencia .fila { grid-template-columns: minmax(200px, 2fr) 84px 84px minmax(190px, 2.2fr) 350px; }
+.tabla-incidencias .cab-t, .tabla-incidencias .fila { grid-template-columns: 96px minmax(170px, 1.6fr) minmax(150px, 1.2fr) 132px minmax(138px, .9fr) 330px; }
+.cab-t { background: #F1F5F9; border-bottom: 1px solid var(--line); font-size: .75rem; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); }
+.fila { --tira: var(--line-2); border-bottom: 1px solid var(--line); font-size: .93rem; }
+.fila:last-child { border-bottom: 0; }
+.fila:hover { background: #F8FAFC; }
+.fila[data-tira="ok"] { --tira: var(--verde); }
+.fila[data-tira="mal"] { --tira: var(--rojo-fill); }
+.fila[data-tira="info"] { --tira: var(--azul); }
+.fila[data-tira="ambar"] { --tira: var(--ambar); }
+.fila[data-tira="neutro"] { --tira: var(--campo); }
+.fila .cel { min-width: 0; }
+.fila .c-nombre { display: flex; gap: 10px; align-items: center; }
+.fila .c-nombre strong { display: block; font-weight: 600; overflow-wrap: anywhere; }
+.fila .c-hora { font-variant-numeric: tabular-nums; }
+.fila .c-estado { display: flex; flex-wrap: wrap; gap: 4px; }
+.fila .c-acc { display: flex; flex-wrap: nowrap; gap: 6px; justify-content: flex-end; }
+.fila .c-acc .btn { white-space: nowrap; }
+.fila .det-f { grid-column: 1 / -1; display: grid; gap: 4px; justify-content: start; padding: 6px 0 2px 46px; border-top: 1px dashed var(--line); margin-top: 4px; }
+.tabla-incidencias .fila .det-f { padding-left: 0; }
+.fila .det-f .consignas { margin: 0; }
+.fila .etq { margin: 0; white-space: nowrap; font-size: .75rem; letter-spacing: .03em; text-transform: uppercase; }
+.fila .etq::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: currentColor; flex: none; }
+.fila .etq.grav-alta { background: var(--rojo-fill); color: #fff; }
+.fila .etq.grav-media { background: var(--ambar); color: var(--navy-900); }
+.fila .etq.grav-baja { background: var(--azul-fill); color: #fff; }
+.etq.ambar { background: var(--ambar-claro); color: var(--navy-900); }
+.av { width: 36px; height: 36px; border-radius: 50%; background: var(--azul-claro); color: var(--azul-txt); display: inline-grid; place-items: center; font-size: .8rem; font-weight: 700; letter-spacing: .02em; flex: none; }
+/* Estado vacío o de carga, compacto */
+.vacio-c { display: flex; gap: 14px; align-items: center; background: var(--surface); border: 2px dashed var(--line-2); border-radius: var(--radius); padding: 14px 16px; margin-bottom: 14px; }
+.vacio-c .chip { width: 44px; height: 44px; border-radius: 12px; background: var(--line); color: var(--navy); display: grid; place-items: center; flex: none; }
+.vacio-c strong { display: block; color: var(--text); }
+.vacio-c span { color: var(--muted); font-size: .92rem; }
+@media (max-width: 1360px) {
+  .fila .c-acc { flex-wrap: wrap; }
+  .tabla-asistencia .cab-t, .tabla-asistencia .fila { grid-template-columns: minmax(170px, 1.6fr) 74px 74px minmax(150px, 1.6fr); }
+  .tabla-asistencia .c-acc { grid-column: 1 / -1; justify-content: flex-start; }
+  .tabla-asistencia .cab-t span:last-child { display: none; }
+  .tabla-incidencias .cab-t, .tabla-incidencias .fila { grid-template-columns: 96px minmax(150px, 1.5fr) minmax(130px, 1fr) 120px minmax(100px, .9fr); }
+  .tabla-incidencias .c-acc { grid-column: 1 / -1; justify-content: flex-start; }
+  .tabla-incidencias .cab-t span:last-child { display: none; }
+}
+@media (max-width: 820px) {
+  .ind-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+  .ind { padding: 10px 12px; gap: 10px; }
+  .ind .n { font-size: 1.7rem; }
+  .ind .t-l { display: none; }
+  .ind .t-c { display: inline; }
+  .tcard2 { background: transparent; border: 0; box-shadow: none; overflow: visible; }
+  .tcard2 > header { padding: 0 2px 8px; border: 0; }
+  .tabla-g .cab-t { display: none; }
+  .tabla-g .fila, .tabla-asistencia .fila, .tabla-incidencias .fila { display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: center; background: var(--surface); border: 1px solid var(--line); border-left: 4px solid var(--tira); border-radius: var(--radius); box-shadow: var(--sombra); margin-bottom: 10px; padding: 12px; }
+  .fila .c-nombre, .fila .c-estado, .fila .c-acc, .fila .det-f { flex: 1 1 100%; }
+  .fila .c-hora { flex: 1 1 28%; }
+  .fila .c-grav { flex: 0 0 auto; }
+  .fila .c-titulo { flex: 1 1 0; min-width: 0; }
+  .fila .c-hora::before, .fila .c-estado[data-et]::before { content: attr(data-et); display: block; font-size: .72rem; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); margin-bottom: 2px; flex: 1 1 100%; }
+  .fila .btn { min-height: 48px; }
+  .fila .c-acc .btn { flex: 1 1 auto; }
+  .fila .det-f { padding-left: 0; }
+}

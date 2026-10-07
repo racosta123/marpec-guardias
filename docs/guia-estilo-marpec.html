@@ -1,0 +1,635 @@
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Guía de estilo MARPEC</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap">
+<!-- Guía de estilo de MARPEC Guardias: una lámina de componentes, tres pantallas de ejemplo y los tokens para copiar.
+     Concepto: tablero claro tipo panel operativo; el único color "de marca" es el azul marino, y rojo/verde/ámbar solo significan estado.
+     Los datos son ejemplos para ilustrar el estilo (no son datos reales). Tema único y claro a propósito: la app es de uso diurno/nocturno con pantalla clara. -->
+<style id="tokens">
+:root {
+  /* ===== COLOR · marca y acción ===== */
+  --navy: #082D5B;          /* navegación, encabezados, texto de énfasis */
+  --navy-900: #051E3E;      /* fondo del menú lateral, texto sobre ámbar */
+  --navy-700: #0C3B73;      /* elemento seleccionado del menú, hover sobre marino */
+  --navy-600: #14478A;
+  --azul: #1E6EFF;          /* íconos, bordes de foco, enlaces grandes (NO para texto blanco) */
+  --azul-fill: #1D6AF5;     /* relleno con texto blanco: 4.74:1 */
+  --azul-claro: #DBEAFE;    /* fondo suave de información */
+  --azul-txt: #1E3A8A;      /* texto sobre azul claro */
+  /* ===== COLOR · estado (solo significado operativo) ===== */
+  --verde: #16A34A;         /* íconos y barras: bien / cubierto */
+  --verde-fill: #15803D;    /* relleno con texto blanco: 5.02:1 */
+  --verde-claro: #DCFCE7;
+  --verde-txt: #166534;
+  --rojo: #EF4444;          /* íconos y barras: emergencia / riesgo */
+  --rojo-fill: #DC2626;     /* relleno con texto blanco: 4.83:1 */
+  --rojo-pan: #B91C1C;      /* pánico: 6.47:1 */
+  --rojo-claro: #FEE2E2;
+  --rojo-txt: #991B1B;
+  --ambar: #F59E0B;         /* relleno con texto marino #051E3E (7.75:1). El blanco NO pasa */
+  --ambar-claro: #FEF3C7;
+  --ambar-txt: #78350F;
+  --turquesa: #0E7490;      /* categoría Bitácoras (relleno con texto blanco: 5.36:1) */
+  --morado: #7C3AED;        /* categoría Visitantes (relleno con texto blanco: 5.70:1) */
+  /* ===== COLOR · superficies y texto neutro ===== */
+  --bg: #F8FAFC;            /* fondo de página */
+  --surface: #FFFFFF;       /* tarjetas, tablas, modales */
+  --text: #0F172A;          /* texto principal: 17:1 */
+  --muted: #475569;         /* texto secundario: 7.2:1 */
+  --line: #E2E8F0;          /* bordes y divisores */
+  --line-2: #CBD5E1;        /* bordes de tarjetas con énfasis */
+  --campo: #64748B;         /* borde de campos (3:1 contra blanco) */
+  --off: #E2E8F0;           /* fondo de control deshabilitado / pista de barra */
+  --off-txt: #64748B;
+  /* ===== FORMA ===== */
+  --r-xs: 6px;              /* badges cuadradas, casillas */
+  --r-sm: 10px;             /* botones, campos */
+  --r-md: 14px;             /* tarjetas, tablas */
+  --r-lg: 18px;             /* modales, hoja inferior (solo esquinas superiores) */
+  --r-pill: 999px;          /* etiquetas, interruptores, avatar */
+  --sombra-1: 0 1px 2px rgba(15, 23, 42, .06), 0 2px 6px rgba(15, 23, 42, .06);   /* tarjetas */
+  --sombra-2: 0 8px 24px rgba(5, 30, 62, .22);                                    /* modales y menús */
+  --foco: 0 0 0 3px rgba(30, 110, 255, .45);
+  /* ===== ESPACIADO (base 4 px) ===== */
+  --s-1: 4px; --s-2: 8px; --s-3: 12px; --s-4: 16px; --s-5: 20px; --s-6: 24px; --s-8: 32px; --s-10: 40px;
+  /* ===== TIPOGRAFÍA (Inter) ===== */
+  --font: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --t-display: 700 28px/1.2 var(--font);     /* número grande de un indicador (26 en celular) */
+  --t-h1: 700 24px/1.25 var(--font);          /* título de página (22 en celular) */
+  --t-h2: 700 18px/1.3 var(--font);           /* título de sección / modal */
+  --t-h3: 600 16px/1.35 var(--font);          /* título de tarjeta */
+  --t-body: 400 16px/1.5 var(--font);         /* texto base (nunca menos de 16 en celular) */
+  --t-small: 400 14px/1.45 var(--font);       /* tablas de escritorio, ayudas */
+  --t-label: 600 14px/1.3 var(--font);        /* etiquetas de campo, botones chicos */
+  --t-caption: 700 12px/1.3 var(--font);      /* encabezado de tabla y badges (mayúsculas, +0.04em) */
+  /* ===== TAMAÑOS ===== */
+  --h-btn: 44px;            /* botón en escritorio */
+  --h-btn-chico: 36px;      /* botón dentro de tablas y filtros (solo escritorio) */
+  --h-campo: 44px;          /* campo en escritorio */
+  --h-tactil: 48px;         /* MÍNIMO de botones, campos, filas tocables y menú en celular */
+  --w-menu: 240px; --h-topbar: 64px; --w-contenido: 1200px; --gutter: 24px; --gutter-cel: 16px;
+}
+</style>
+<style>
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--bg);color:var(--text);font:var(--t-body);color-scheme:light}
+h1,h2,h3,h4,p{margin:0}
+svg.i{flex:none;display:inline-block;vertical-align:-.18em}
+.g-wrap{max-width:1500px;margin:0 auto;padding-inline:16px;padding-block:20px 56px;display:flex;flex-direction:column;gap:28px}
+.g-top{display:flex;flex-wrap:wrap;gap:16px;align-items:flex-end;justify-content:space-between}
+.g-top h1{font:700 30px/1.15 var(--font);color:var(--navy);letter-spacing:-.01em}
+.g-top p{color:var(--muted);font:var(--t-small);max-width:70ch;margin-top:6px}
+.g-nav{display:flex;gap:8px;flex-wrap:wrap}
+.g-nav a{display:inline-flex;align-items:center;min-height:40px;padding:0 14px;border-radius:var(--r-pill);background:#fff;border:1px solid var(--line-2);color:var(--navy);font:var(--t-label);text-decoration:none}
+.g-nav a:hover{background:var(--azul-claro)}
+.g-sec>h2{font:700 22px/1.2 var(--font);color:var(--navy);display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.g-sec>h2 small{font:var(--t-small);color:var(--muted);font-weight:500}
+.g-sec>p.sub{font:var(--t-small);color:var(--muted);margin:4px 0 14px;max-width:80ch}
+.board{display:grid;grid-template-columns:repeat(12,minmax(0,1fr));gap:14px}
+.pn{background:var(--surface);border:1px solid var(--line);border-radius:var(--r-md);box-shadow:var(--sombra-1);padding:14px;min-width:0;display:flex;flex-direction:column;gap:10px;grid-column:span 12}
+.pn>h3{font:var(--t-h3);color:var(--navy);display:flex;gap:8px;align-items:baseline}
+.pn>h3 b{display:inline-grid;place-items:center;min-width:24px;height:24px;border-radius:var(--r-xs);background:var(--navy);color:#fff;font:700 12px/1 var(--font)}
+.pn .nota{font:var(--t-small);color:var(--muted);margin-top:2px}
+.dual{display:grid;grid-template-columns:minmax(0,1fr);gap:12px}
+.dual>div{min-width:0}
+.et{font:var(--t-caption);text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin-bottom:6px}
+@media(min-width:900px){.pn.s6{grid-column:span 6}.pn.s4{grid-column:span 4}.pn.s8{grid-column:span 8}.pn.s5{grid-column:span 5}.pn.s7{grid-column:span 7}.dual.d2{grid-template-columns:minmax(0,1fr) 392px}.dual.d3{grid-template-columns:minmax(0,1fr) 392px}}
+.cel{width:360px;max-width:100%;border:1px solid var(--line-2);border-radius:var(--r-md);background:var(--bg);padding:12px;display:flex;flex-direction:column;gap:10px;overflow:hidden}
+.cel *{--h-btn:48px;--h-campo:48px}
+.marco{border:1px solid var(--line-2);border-radius:var(--r-md);background:var(--bg);padding:14px;overflow:hidden;position:relative}
+/* ---------- iconos ---------- */
+.ico-chip{width:40px;height:40px;border-radius:var(--r-sm);display:grid;place-items:center;flex:none}
+.c-ok{--c:var(--verde);--cs:var(--verde-claro);--ct:var(--verde-txt);--cf:var(--verde-fill)}
+.c-mal{--c:var(--rojo);--cs:var(--rojo-claro);--ct:var(--rojo-txt);--cf:var(--rojo-fill)}
+.c-warn{--c:var(--ambar);--cs:var(--ambar-claro);--ct:var(--ambar-txt);--cf:var(--ambar)}
+.c-info{--c:var(--azul);--cs:var(--azul-claro);--ct:var(--azul-txt);--cf:var(--azul-fill)}
+.c-neu{--c:#94A3B8;--cs:var(--line);--ct:#334155;--cf:var(--navy)}
+.ico-chip{background:var(--cs,var(--line));color:var(--ct,var(--navy))}
+/* ---------- botones ---------- */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:var(--h-btn);padding:0 18px;border-radius:var(--r-sm);border:2px solid transparent;font:600 15px/1 var(--font);cursor:pointer;text-decoration:none;white-space:nowrap}
+.btn:focus-visible,.fld input:focus-visible,.fld select:focus-visible,.fld textarea:focus-visible,.tab:focus-visible,.menu a:focus-visible,.ib:focus-visible,.pg button:focus-visible,.sw:focus-within{outline:none;box-shadow:var(--foco);border-color:var(--azul)}
+.btn.pri{background:var(--azul-fill);color:#fff}.btn.pri:hover{background:#1A5FE0}
+.btn.sec{background:#fff;color:var(--navy);border-color:var(--navy)}.btn.sec:hover{background:#EEF2F7}
+.btn.pel{background:var(--rojo-fill);color:#fff}.btn.pel:hover{background:var(--rojo-pan)}
+.btn.ver{background:var(--verde-fill);color:#fff}
+.btn.fan{background:transparent;color:var(--azul-txt);padding:0 10px}.btn.fan:hover{background:var(--azul-claro)}
+.btn[disabled]{background:var(--off);color:var(--off-txt);border-color:transparent;cursor:not-allowed}
+.btn.ch{min-height:var(--h-btn-chico);padding:0 12px;font-size:14px}
+.cel .btn.ch{min-height:48px}
+.btn.blk{width:100%}
+.ib{width:var(--h-btn-chico);height:var(--h-btn-chico);border-radius:var(--r-sm);border:2px solid var(--line-2);background:#fff;color:var(--navy);display:inline-grid;place-items:center;cursor:pointer;flex:none}
+.cel .ib{width:48px;height:48px}
+.ib:hover{background:#EEF2F7}
+.fila{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+/* ---------- badges ---------- */
+.bd{display:inline-flex;align-items:center;gap:5px;height:24px;padding:0 10px;border-radius:var(--r-pill);font:var(--t-caption);letter-spacing:.03em;text-transform:uppercase;background:var(--cs);color:var(--ct);white-space:nowrap}
+.bd i{width:7px;height:7px;border-radius:50%;background:var(--c)}
+.bd.fill{background:var(--cf);color:#fff}.bd.fill.c-warn{color:var(--navy-900)}
+/* ---------- campos ---------- */
+.fld{display:flex;flex-direction:column;gap:6px;min-width:0}
+.fld>label,.fld>.l{font:var(--t-label);color:var(--text)}
+.fld input[type=text],.fld input[type=search],.fld input[type=date],.fld input[type=password],.fld input[type=tel],.fld select,.fld textarea{width:100%;min-height:var(--h-campo);padding:9px 12px;font:400 16px/1.3 var(--font);color:var(--text);background:#fff;border:2px solid var(--campo);border-radius:var(--r-sm);appearance:none}
+.fld select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23475569' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 12px center;padding-right:36px}
+.fld textarea{min-height:92px;resize:vertical}
+.fld .ay{font:var(--t-small);color:var(--muted)}
+.fld.err input,.fld.err select,.fld.err textarea{border-color:var(--rojo-pan)}
+.fld .em{font:600 13px/1.35 var(--font);color:var(--rojo-txt);display:flex;gap:6px;align-items:flex-start}
+.fld input[disabled]{background:var(--off);color:var(--off-txt);border-color:var(--line-2)}
+.bus{position:relative}
+.bus svg{position:absolute;left:12px;top:50%;transform:translateY(-50%);color:var(--muted)}
+.bus input{padding-left:40px!important}
+.chk{display:flex;gap:10px;align-items:center;min-height:var(--h-campo);font:500 15px/1.3 var(--font)}
+.chk input{appearance:none;width:24px;height:24px;border:2px solid var(--campo);border-radius:var(--r-xs);background:#fff;display:grid;place-items:center;margin:0;flex:none}
+.chk input:checked{background:var(--azul-fill);border-color:var(--azul-fill)}
+.chk input:checked::after{content:"";width:6px;height:11px;border:solid #fff;border-width:0 2.5px 2.5px 0;transform:rotate(45deg) translate(-1px,-1px)}
+.sw{display:flex;gap:12px;align-items:center;min-height:var(--h-campo);font:500 15px/1.3 var(--font);cursor:pointer;border-radius:var(--r-sm)}
+.sw input{appearance:none;width:48px;height:28px;border-radius:var(--r-pill);background:var(--campo);position:relative;margin:0;flex:none;cursor:pointer}
+.sw input::after{content:"";position:absolute;top:3px;left:3px;width:22px;height:22px;border-radius:50%;background:#fff;transition:transform .12s}
+.sw input:checked{background:var(--verde-fill)}.sw input:checked::after{transform:translateX(20px)}
+.grid2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.grid3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+/* ---------- encabezado de página ---------- */
+.ph{display:flex;flex-wrap:wrap;gap:12px 16px;align-items:flex-start;justify-content:space-between}
+.ph h1{font:var(--t-h1);color:var(--navy)}
+.ph p{font:var(--t-small);color:var(--muted);margin-top:2px}
+.ph .acc{display:flex;gap:8px;flex-wrap:wrap}
+.cel .ph h1{font-size:22px}.cel .ph .acc{width:100%}.cel .ph .acc .btn{flex:1}
+.mig{display:flex;gap:6px;align-items:center;font:var(--t-small);color:var(--azul-txt);margin-bottom:6px;font-weight:600}
+/* ---------- KPI ---------- */
+.kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
+.cel .kpis{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.kpi{background:#fff;border:1px solid var(--line);border-radius:var(--r-md);box-shadow:var(--sombra-1);padding:12px 14px;display:flex;gap:12px;align-items:center;min-width:0}
+.kpi b{font:var(--t-display);color:var(--text);display:block;font-variant-numeric:tabular-nums}
+.kpi span.k{font:500 13px/1.25 var(--font);color:var(--muted);display:block}
+.cel .kpi{padding:10px 12px;gap:10px}.cel .kpi b{font-size:24px}
+.kpi .ico-chip{width:40px;height:40px}.cel .kpi .ico-chip{width:36px;height:36px}
+.kpi.dest{border-color:var(--rojo-pan);background:var(--rojo-claro)}
+/* ---------- filtros ---------- */
+.filtros{display:grid;grid-template-columns:minmax(150px,2fr) repeat(3,minmax(110px,1fr)) auto;gap:10px;align-items:end;background:#fff;border:1px solid var(--line);border-radius:var(--r-md);padding:12px 14px}
+.filtros .btns{display:flex;gap:8px}
+.cel .filtros{grid-template-columns:repeat(2,minmax(0,1fr));padding:12px}
+.cel .filtros>.fld:first-child,.cel .filtros .btns{grid-column:1/-1}
+.cel .filtros .btns .btn{flex:1}
+/* ---------- tabla ---------- */
+.tabla{background:#fff;border:1px solid var(--line);border-radius:var(--r-md);box-shadow:var(--sombra-1);overflow:hidden}
+.tabla .cab,.tabla .fl{display:grid;grid-template-columns:minmax(190px,2.1fr) minmax(110px,1.2fr) minmax(110px,1.1fr) 76px 76px 120px 52px;gap:12px;align-items:center;padding:0 14px}
+.tabla .cab{height:42px;background:#F1F5F9;border-bottom:1px solid var(--line);font:var(--t-caption);text-transform:uppercase;letter-spacing:.05em;color:var(--muted)}
+.tabla .fl{min-height:60px;border-bottom:1px solid var(--line);border-left:4px solid var(--c,var(--line-2));font:var(--t-small);padding-left:10px}
+.tabla .fl:hover{background:#F8FAFC}
+.tabla .fl .tn{font-variant-numeric:tabular-nums;color:var(--text)}
+.tabla .vacio-celda{color:var(--muted)}
+.tabla .nom{display:flex;gap:10px;align-items:center;min-width:0}
+.tabla .nom b{display:block;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tabla .nom small{display:block;color:var(--muted);font-size:13px}
+.av{width:36px;height:36px;border-radius:50%;background:var(--azul-claro);color:var(--azul-txt);display:grid;place-items:center;font:700 13px/1 var(--font);flex:none;letter-spacing:.02em}
+.pie-t{display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between;padding:10px 14px;font:var(--t-small);color:var(--muted);background:#fff}
+.pg{display:flex;gap:6px;align-items:center}
+.pg button{min-width:40px;height:40px;border-radius:var(--r-sm);border:2px solid var(--line-2);background:#fff;color:var(--navy);font:600 14px/1 var(--font);cursor:pointer;display:grid;place-items:center;padding:0}
+.pg button[aria-current=page]{background:var(--navy);border-color:var(--navy);color:#fff}
+.pg button[disabled]{background:var(--off);border-color:transparent;color:var(--off-txt);cursor:not-allowed}
+.cel .pg button{min-width:48px;height:48px}
+.tablaw{overflow-x:auto}
+.tablaw .tabla{min-width:880px}
+/* tarjetas (tabla en celular) */
+.tcard{background:#fff;border:1px solid var(--line);border-left:4px solid var(--c,var(--line-2));border-radius:var(--r-md);box-shadow:var(--sombra-1);padding:12px;display:flex;flex-direction:column;gap:10px}
+.tcard .top{display:flex;gap:10px;align-items:center}
+.tcard .top .nom{flex:1;min-width:0}
+.tcard .top b{display:block;font:var(--t-h3)}.tcard .top small{display:block;color:var(--muted);font-size:14px}
+.tcard dl{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin:0}
+.tcard dt{font:var(--t-caption);text-transform:uppercase;letter-spacing:.05em;color:var(--muted)}
+.tcard dd{margin:2px 0 0;font:600 15px/1.3 var(--font);font-variant-numeric:tabular-nums}
+.tcard .ac{display:flex;gap:8px}.tcard .ac .btn{flex:1}
+/* ---------- alertas ---------- */
+.al{display:flex;gap:12px;align-items:flex-start;border-radius:var(--r-md);padding:12px 14px;background:var(--cs);color:var(--ct);border:1px solid var(--c);font:500 15px/1.4 var(--font)}
+.al b{display:block;font-weight:700;color:inherit}
+.al .cuerpo{flex:1;min-width:0}
+.al svg{margin-top:2px}
+.al.pan{background:var(--rojo-pan);border-color:var(--rojo-pan);color:#fff;align-items:center}
+.al.pan .btn{background:#fff;color:var(--rojo-pan);flex:none}
+.al.lic{background:var(--ambar);border-color:var(--ambar);color:var(--navy-900);border-radius:var(--r-sm);align-items:center}
+.al.lic .btn{background:var(--navy-900);color:#fff;flex:none}
+.toast{display:flex;gap:10px;align-items:center;background:var(--navy-900);color:#fff;border-radius:var(--r-sm);padding:12px 14px;box-shadow:var(--sombra-2);font:500 15px/1.3 var(--font)}
+.toast svg{color:#86EFAC}
+.cel .al.pan{flex-wrap:wrap}.cel .al.pan .btn{width:100%}
+.cel .al.lic{flex-wrap:wrap}
+@media(prefers-reduced-motion:no-preference){.al.pan .pulso{animation:pulso 1.4s ease-in-out infinite}@keyframes pulso{50%{opacity:.45}}}
+/* ---------- vacío y carga ---------- */
+.vacio{border:2px dashed var(--line-2);border-radius:var(--r-md);background:#fff;padding:16px;display:flex;gap:14px;align-items:center}
+.vacio b{display:block;font:var(--t-h3)}.vacio span{font:var(--t-small);color:var(--muted)}
+.esq{display:flex;flex-direction:column;gap:8px;background:#fff;border:1px solid var(--line);border-radius:var(--r-md);padding:12px}
+.esq i{display:block;height:14px;border-radius:7px;background:var(--off)}
+@media(prefers-reduced-motion:no-preference){.esq i{animation:suave 1.6s ease-in-out infinite}@keyframes suave{50%{opacity:.5}}}
+.cargando{display:flex;gap:10px;align-items:center;color:var(--muted);font:500 15px/1 var(--font)}
+@media(prefers-reduced-motion:no-preference){.giro{animation:giro .9s linear infinite}@keyframes giro{to{transform:rotate(360deg)}}}
+/* ---------- menú lateral ---------- */
+.menu{background:var(--navy-900);border-radius:var(--r-md);padding:12px 10px;display:flex;flex-direction:column;gap:2px;width:240px;max-width:100%}
+.menu .marca{display:flex;gap:10px;align-items:center;color:#fff;padding:4px 8px 12px;font:700 15px/1.2 var(--font)}
+.menu .marca small{display:block;color:#CBD5E1;font:500 12px/1.2 var(--font);font-style:italic}
+.menu a{display:flex;gap:12px;align-items:center;min-height:44px;padding:0 12px;border-radius:var(--r-sm);color:#E2E8F0;font:600 15px/1 var(--font);text-decoration:none}
+.menu a:hover{background:#0A2F5E}
+.menu a[aria-current=page]{background:var(--navy-700);color:#fff;box-shadow:inset 3px 0 0 var(--ambar)}
+.menu a .n{margin-left:auto;min-width:22px;height:22px;padding:0 7px;border-radius:var(--r-pill);background:var(--rojo-pan);color:#fff;font:700 12px/22px var(--font);text-align:center}
+.menu a .n.az{background:var(--ambar);color:var(--navy-900)}
+.cel .menu a{min-height:48px}
+/* ---------- pestañas ---------- */
+.tabs{display:flex;gap:4px;border-bottom:2px solid var(--line);overflow-x:auto}
+.tab{min-height:44px;padding:0 14px;border:0;background:transparent;font:600 15px/1 var(--font);color:var(--muted);cursor:pointer;border-bottom:3px solid transparent;margin-bottom:-2px;white-space:nowrap;display:inline-flex;gap:8px;align-items:center}
+.tab[aria-selected=true]{color:var(--navy);border-bottom-color:var(--azul)}
+.cel .tab{min-height:48px}
+.seg{display:inline-grid;grid-auto-flow:column;gap:4px;background:#fff;border:1px solid var(--line);border-radius:12px;padding:4px}
+.seg button{border:0;background:transparent;min-height:40px;padding:0 14px;border-radius:9px;font:600 14px/1 var(--font);color:var(--muted);cursor:pointer}
+.seg button[aria-pressed=true]{background:var(--navy);color:#fff}
+.prog{display:flex;flex-direction:column;gap:6px}
+.prog .l{display:flex;justify-content:space-between;font:600 14px/1.2 var(--font)}
+.prog .l span{color:var(--muted);font-weight:500;font-variant-numeric:tabular-nums}
+.prog .b{height:10px;border-radius:var(--r-pill);background:var(--off);overflow:hidden}
+.prog .b i{display:block;height:100%;border-radius:var(--r-pill);background:var(--c)}
+/* ---------- modal y hoja ---------- */
+.fondo{background:rgba(5,30,62,.55);border-radius:var(--r-md);padding:18px;display:flex;align-items:center;justify-content:center;flex:1}
+.dual>div{display:flex;flex-direction:column}
+.fondo.abajo{align-items:flex-end;padding:0;overflow:hidden;border-radius:var(--r-md)}
+.mod{background:#fff;border-radius:var(--r-lg);box-shadow:var(--sombra-2);width:100%;max-width:480px;padding:18px 20px 20px;display:flex;flex-direction:column;gap:12px}
+.mod .cab{display:flex;justify-content:space-between;align-items:center;gap:8px}
+.mod h4{font:var(--t-h2);color:var(--navy)}
+.mod .pie{display:flex;gap:10px;justify-content:flex-end;margin-top:4px;flex-wrap:wrap}
+.mod.hoja{border-radius:var(--r-lg) var(--r-lg) 0 0;max-width:none;padding-top:10px}
+.mod.hoja::before{content:"";width:40px;height:4px;border-radius:2px;background:var(--line-2);margin:0 auto 4px}
+.mod.hoja .pie{flex-direction:column-reverse}.mod.hoja .pie .btn{width:100%}
+.dato{display:grid;grid-template-columns:110px minmax(0,1fr);gap:6px 12px;font:var(--t-small);margin:0}
+.dato dt{color:var(--muted);font-weight:600}.dato dd{margin:0;color:var(--text)}
+/* ---------- pantallas de ejemplo ---------- */
+.fit{width:100%;position:relative;overflow:hidden;border-radius:var(--r-md);border:1px solid var(--line-2)}
+.fit[data-w="1440"]{max-width:1440px}
+.fit>.es{transform-origin:0 0;position:absolute;left:0;top:0}
+.es{background:var(--bg);font:var(--t-body)}
+.es.pc{width:1440px;display:grid;grid-template-columns:var(--w-menu) minmax(0,1fr);min-height:760px}
+.es.pc .lat{background:var(--navy-900);padding:16px 12px;display:flex;flex-direction:column;gap:2px}
+.es.pc .lat .marca{display:flex;gap:10px;align-items:center;color:#fff;padding:4px 8px 16px;font:700 16px/1.2 var(--font)}
+.es.pc .lat .marca small{display:block;color:#CBD5E1;font:500 12px/1.2 var(--font);font-style:italic}
+.es.pc .lat a{display:flex;gap:12px;align-items:center;min-height:44px;padding:0 12px;border-radius:var(--r-sm);color:#E2E8F0;font:600 15px/1 var(--font);text-decoration:none}
+.es.pc .lat a[aria-current=page]{background:var(--navy-700);color:#fff;box-shadow:inset 3px 0 0 var(--ambar)}
+.es.pc .lat a .n{margin-left:auto;min-width:22px;height:22px;padding:0 7px;border-radius:var(--r-pill);background:var(--rojo-pan);color:#fff;font:700 12px/22px var(--font);text-align:center}
+.es.pc .lat a .n.az{background:var(--ambar);color:var(--navy-900)}
+.es .tb{height:var(--h-topbar);background:var(--navy);color:#fff;display:flex;align-items:center;gap:12px;padding:0 24px}
+.es .tb .u{margin-left:auto;display:flex;gap:12px;align-items:center;font:600 14px/1.2 var(--font)}
+.es .tb .u small{display:block;color:#CBD5E1;font-weight:500}
+.es .tb .ibt{width:44px;height:44px;border-radius:var(--r-sm);display:grid;place-items:center;color:#fff;position:relative}
+.es .tb .ibt .n{position:absolute;top:2px;right:2px;min-width:18px;height:18px;border-radius:9px;background:var(--rojo-pan);color:#fff;font:700 11px/18px var(--font);text-align:center;padding:0 4px}
+.es .tb .lema{font:italic 500 13px/1 var(--font);color:#CBD5E1}
+.es .cont{padding:24px;display:flex;flex-direction:column;gap:16px;max-width:var(--w-contenido);width:100%}
+.es.mv{width:360px;min-height:740px}
+.es.mv .tb{padding:0 8px;height:60px}
+.es.mv .cont{padding:16px;gap:12px}
+.es.mv *{--h-btn:48px;--h-campo:48px}
+.es.mv .ph h1{font-size:22px}
+.es.mv .ph .acc{width:100%}.es.mv .ph .acc .btn{flex:1}
+.es.mv .kpis{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.es.mv .kpi{padding:10px 12px;gap:10px}.es.mv .kpi b{font-size:24px}.es.mv .kpi .ico-chip{width:36px;height:36px}
+.es.mv .filtros{grid-template-columns:repeat(2,minmax(0,1fr))}
+.es.mv .filtros>.fld:first-child,.es.mv .filtros .btns{grid-column:1/-1}.es.mv .filtros .btns .btn{flex:1}
+.es.mv .pg button{min-width:48px;height:48px}
+.es.mv .ib{width:48px;height:48px}
+.es.mv .tab{min-height:48px}
+.sup{position:relative}
+.es .nav-m{background:var(--navy-900);padding:8px;display:flex;flex-direction:column;gap:2px}
+.pnl{background:#fff;border:1px solid var(--line);border-radius:var(--r-md);box-shadow:var(--sombra-1);padding:16px;display:flex;flex-direction:column;gap:12px;min-width:0}
+.pnl h2{font:var(--t-h2);color:var(--navy)}
+.pnl.sub{box-shadow:none}
+.dos-col{display:grid;grid-template-columns:minmax(0,1.6fr) minmax(0,1fr);gap:16px;align-items:start}
+.es.mv .dos-col{grid-template-columns:minmax(0,1fr)}
+.es.mv .grid2{grid-template-columns:minmax(0,1fr)}
+.lin{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:0}
+.lin li{display:grid;grid-template-columns:34px minmax(0,1fr);gap:10px;padding-bottom:14px;position:relative}
+.lin li::before{content:"";position:absolute;left:16px;top:34px;bottom:0;width:2px;background:var(--line)}
+.lin li:last-child::before{display:none}.lin li:last-child{padding-bottom:0}
+.lin .p{width:34px;height:34px;border-radius:50%;display:grid;place-items:center;background:var(--cs);color:var(--ct)}
+.lin b{font-weight:700}.lin .m{font:var(--t-small);color:var(--muted)}.lin p{font:var(--t-small);color:var(--text);margin-top:2px}
+/* ---------- tokens ---------- */
+.tk{display:grid;grid-template-columns:minmax(0,1fr);gap:14px}
+@media(min-width:1000px){.tk{grid-template-columns:minmax(0,1.25fr) minmax(0,1fr)}}
+.cod{background:var(--navy-900);color:#E2E8F0;border-radius:var(--r-md);padding:14px;overflow:auto;font:12.5px/1.55 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;margin:0;white-space:pre}
+.cop{display:flex;gap:10px;align-items:center;margin-bottom:8px}
+.tt{width:100%;border-collapse:collapse;font:var(--t-small)}
+.tt th{font:var(--t-caption);text-transform:uppercase;letter-spacing:.05em;color:var(--muted);text-align:left;padding:8px 10px;background:#F1F5F9;border-bottom:1px solid var(--line)}
+.tt td{padding:9px 10px;border-bottom:1px solid var(--line);vertical-align:top}
+.tt td.n{font-variant-numeric:tabular-nums;white-space:nowrap}
+.sw-c{display:inline-flex;align-items:center;gap:8px}
+.sw-c i{width:22px;height:22px;border-radius:6px;border:1px solid var(--line-2);display:inline-block;flex:none}
+.muestra{display:inline-grid;place-items:center;min-width:76px;height:34px;border-radius:8px;font:700 13px/1 var(--font);padding:0 8px}
+.ok-t{color:var(--verde-txt);font-weight:700}
+.regla{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:10px}
+.regla div{border:1px solid var(--line);border-radius:var(--r-md);background:#fff;padding:12px;font:var(--t-small);color:var(--muted)}
+.regla b{display:flex;gap:8px;align-items:center;color:var(--text);font:var(--t-label);margin-bottom:4px}
+.regla b i{width:14px;height:14px;border-radius:4px;display:inline-block}
+.no-hacer{border:1px solid var(--rojo-pan);background:var(--rojo-claro);color:var(--rojo-txt);border-radius:var(--r-md);padding:12px 14px;font:var(--t-small)}
+.no-hacer ul{margin:6px 0 0;padding-left:18px}
+.dim{display:flex;gap:10px;flex-wrap:wrap}
+.dimb{border:1px dashed var(--campo);border-radius:8px;background:#fff;padding:6px 10px;font:600 13px/1.3 var(--font);color:var(--navy)}
+@media(max-width:899px){.filtros{grid-template-columns:repeat(2,minmax(0,1fr))}.filtros>.fld:first-child,.filtros .btns{grid-column:1/-1}.filtros .btns .btn{flex:1}}
+@media(max-width:700px){.kpis{grid-template-columns:repeat(2,minmax(0,1fr))}.fila-cel{grid-template-columns:minmax(0,1fr)!important}.fila-cel .fit{max-width:360px;margin-inline:auto}}
+@media(max-width:560px){.g-top h1{font-size:25px}.dual.d2,.dual.d3{grid-template-columns:minmax(0,1fr)}.cel{margin-inline:auto}}
+</style>
+
+<div class="g-wrap">
+  <header class="g-top">
+    <div>
+      <h1>Guía de estilo · MARPEC Guardias</h1>
+      <p>Una sola lámina de componentes, tres pantallas completas aplicadas y los tokens para copiar. Escritorio (menú lateral) y celular Android económico. Todos los datos son ejemplos para mostrar el estilo.</p>
+    </div>
+    <nav class="g-nav" aria-label="Secciones"><a href="#lamina">1 · Lámina</a><a href="#pantallas">2 · Pantallas</a><a href="#tokens">3 · Tokens</a></nav>
+  </header>
+
+  <section class="g-sec" id="lamina">
+    <h2>Entrega 1 · Lámina de componentes <small>12 grupos · escritorio y celular (360 px)</small></h2>
+    <p class="sub">Cada componente usa solo los tokens de la sección 3. El color solo comunica estado: azul = acción, verde = bien, rojo = riesgo, ámbar = advertencia, marino = estructura.</p>
+    <div class="board" id="board"></div>
+  </section>
+
+  <section class="g-sec" id="pantallas">
+    <h2>Entrega 2 · Tres pantallas aplicando la guía <small>1440 px y 360 px · escaladas para caber en pantalla</small></h2>
+    <p class="sub">(a) Lista con tabla · Asistencia. (b) Formulario · Alta de guardia. (c) Detalle con ventana modal · Incidencia con seguimiento.</p>
+    <div style="display:flex;flex-direction:column;gap:26px" id="pant"></div>
+  </section>
+
+  <section class="g-sec" id="tokens">
+    <h2>Entrega 3 · Tokens y reglas de uso <small>copiar y pegar</small></h2>
+    <div class="tk">
+      <div><div class="cop"><button class="btn sec ch" id="copiar" type="button">Copiar variables CSS</button><span class="nota" id="copiado" role="status" style="font:var(--t-small);color:var(--muted)"></span></div><pre class="cod" id="cod" tabindex="0" aria-label="Variables CSS"></pre></div>
+      <div style="display:flex;flex-direction:column;gap:14px;min-width:0" id="tkr"></div>
+    </div>
+  </section>
+</div>
+
+<script>
+/* ---------- íconos (Lucide, ISC) ---------- */
+const P = {
+  envivo:'<path d="M16.247 7.761a6 6 0 0 1 0 8.478"/><path d="M19.075 4.933a10 10 0 0 1 0 14.134"/><path d="M4.925 19.067a10 10 0 0 1 0-14.134"/><path d="M7.753 16.239a6 6 0 0 1 0-8.478"/><circle cx="12" cy="12" r="2"/>',
+  asistencia:'<rect width="8" height="4" x="8" y="2" rx="1" ry="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><path d="m9 14 2 2 4-4"/>',
+  rondines:'<circle cx="6" cy="19" r="3"/><path d="M9 19h8.5a3.5 3.5 0 0 0 0-7h-11a3.5 3.5 0 0 1 0-7H15"/><circle cx="18" cy="5" r="3"/>',
+  incidencias:'<path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3"/><path d="M12 9v4"/><path d="M12 17h.01"/>',
+  visitantes:'<path d="M18 21a8 8 0 0 0-16 0"/><circle cx="10" cy="8" r="5"/><path d="M22 20c0-3.37-2-6.5-4-8a5 5 0 0 0-.45-8.3"/>',
+  bitacoras:'<path d="M2 6h4"/><path d="M2 10h4"/><path d="M2 14h4"/><path d="M2 18h4"/><rect width="16" height="20" x="4" y="2" rx="2"/><path d="M9.5 8h5"/><path d="M9.5 12H16"/><path d="M9.5 16H14"/>',
+  alertas:'<path d="M10.268 21a2 2 0 0 0 3.464 0"/><path d="M3.262 15.326A1 1 0 0 0 4 17h16a1 1 0 0 0 .74-1.673C19.41 13.956 18 12.499 18 8A6 6 0 0 0 6 8c0 4.499-1.411 5.956-2.738 7.326"/>',
+  turnos:'<path d="M8 2v3"/><path d="M16 2v3"/><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18"/>',
+  sitios:'<path d="M20 10c0 4.993-5.539 10.193-7.399 11.799a1 1 0 0 1-1.202 0C9.539 20.193 4 14.993 4 10a8 8 0 0 1 16 0"/><circle cx="12" cy="10" r="3"/>',
+  personal:'<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><path d="M16 3.128a4 4 0 0 1 0 7.744"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><circle cx="9" cy="7" r="4"/>',
+  reportes:'<path d="M3 3v16a2 2 0 0 0 2 2h16"/><path d="M18 17V9"/><path d="M13 17V5"/><path d="M8 17v-3"/>',
+  empresa:'<path d="M10 12h4"/><path d="M10 8h4"/><path d="M14 21v-3a2 2 0 0 0-4 0v3"/><path d="M6 10H4a2 2 0 0 0-2 2v7a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-2"/><path d="M6 21V5a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v16"/>',
+  sinconexion:'<path d="M12 20h.01"/><path d="M8.5 16.429a5 5 0 0 1 7 0"/><path d="M5 12.859a10 10 0 0 1 5.17-2.69"/><path d="M19 12.859a10 10 0 0 0-2.007-1.523"/><path d="M2 8.82a15 15 0 0 1 4.177-2.643"/><path d="M22 8.82a15 15 0 0 0-11.288-2.7"/><path d="m2 2 20 20"/>',
+  auditoria:'<path d="M15 12h-5"/><path d="M15 8h-5"/><path d="M19 17V5a2 2 0 0 0-2-2H4"/><path d="M8 21h12a2 2 0 0 0 2-2v-1a1 1 0 0 0-1-1H11a1 1 0 0 0-1 1v1a2 2 0 1 1-4 0V5a2 2 0 1 0-4 0v2a1 1 0 0 0 1 1h3"/>',
+  escudo:'<path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"/><path d="m9 12 2 2 4-4"/>',
+  check:'<path d="M20 6 9 17l-5-5"/>', x:'<path d="M18 6 6 18"/><path d="m6 6 12 12"/>', menu:'<path d="M4 5h16"/><path d="M4 12h16"/><path d="M4 19h16"/>',
+  der:'<path d="m9 18 6-6-6-6"/>', izq:'<path d="m15 18-6-6 6-6"/>', atras:'<path d="m12 19-7-7 7-7"/><path d="M19 12H5"/>',
+  buscar:'<circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/>',
+  filtro:'<path d="M10 20a1 1 0 0 0 .553.895l2 1A1 1 0 0 0 14 21v-7a2 2 0 0 1 .517-1.341L21.74 4.67A1 1 0 0 0 21 3H3a1 1 0 0 0-.742 1.67l7.225 7.989A2 2 0 0 1 10 14z"/>',
+  mas:'<circle cx="12" cy="12" r="1"/><circle cx="12" cy="5" r="1"/><circle cx="12" cy="19" r="1"/>',
+  bajar:'<path d="M12 15V3"/><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="m7 10 5 5 5-5"/>',
+  info:'<circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/>',
+  ok:'<circle cx="12" cy="12" r="10"/><path d="m9 12 2 2 4-4"/>',
+  ojo:'<path d="M2.062 12.348a1 1 0 0 1 0-.696 10.75 10.75 0 0 1 19.876 0 1 1 0 0 1 0 .696 10.75 10.75 0 0 1-19.876 0"/><circle cx="12" cy="12" r="3"/>',
+  bandeja:'<path d="M22 12h-6l-2 3h-4l-2-3H2"/><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/>',
+  giro:'<path d="M21 12a9 9 0 1 1-6.219-8.56"/>',
+  reloj:'<circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/>',
+  usuario:'<path d="M17.925 20.056a6 6 0 0 0-11.851.001"/><circle cx="12" cy="11" r="4"/><circle cx="12" cy="12" r="10"/>',
+  masusr:'<path d="M2 21a8 8 0 0 1 13.292-6"/><circle cx="10" cy="8" r="5"/><path d="M19 16v6"/><path d="M22 19h-6"/>',
+  nota:'<path d="M14.364 13.634a2 2 0 0 0-.506.854l-.837 2.87a.5.5 0 0 0 .62.62l2.87-.837a2 2 0 0 0 .854-.506l4.013-4.009a1 1 0 0 0-3.004-3.004z"/><path d="M14.487 7.858A1 1 0 0 1 14 7V2"/><path d="M20 19.645V20a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h8a2.4 2.4 0 0 1 1.704.706l3.588 3.588A2.4 2.4 0 0 1 20 8v3.5"/>',
+  panico:'<path d="M7 18v-6a5 5 0 1 1 10 0v6"/><path d="M5 21a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-1a2 2 0 0 0-2-2H7a2 2 0 0 0-2 2z"/><path d="M21 12h1"/><path d="M18.5 4.5 18 5"/><path d="M2 12h1"/><path d="M12 2v1"/>',
+  entrada:'<path d="m10 17 5-5-5-5"/><path d="M15 12H3"/><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/>',
+  candado:'<rect width="18" height="11" x="3" y="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>'
+};
+const ic = (n, t = 20) => `<svg class="i" width="${t}" height="${t}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${P[n]}</svg>`;
+const bd = (t, c, fill) => `<span class="bd c-${c}${fill ? ' fill' : ''}"><i></i>${t}</span>`;
+const ini = (n) => n.split(' ').map((p) => p[0]).slice(0, 2).join('');
+const btn = (t, k = 'pri', i = '', extra = '') => `<button class="btn ${k} ${extra}" type="button">${i ? ic(i, 18) : ''}${t}</button>`;
+const ib = (i, label) => `<button class="ib" type="button" aria-label="${label}">${ic(i, 18)}</button>`;
+const kpi = (i, c, n, l, extra = '') => `<div class="kpi c-${c} ${extra}"><span class="ico-chip">${ic(i, 22)}</span><div><b>${n}</b><span class="k">${l}</span></div></div>`;
+const fld = (l, ctl, ay, err) => `<div class="fld${err ? ' err' : ''}"><label>${l}</label>${ctl}${err ? `<span class="em">${ic('info', 16)}${err}</span>` : ''}${ay ? `<span class="ay">${ay}</span>` : ''}</div>`;
+const sel = (opts, v = 0) => `<select>${opts.map((o, i) => `<option${i === v ? ' selected' : ''}>${o}</option>`).join('')}</select>`;
+
+/* ---------- datos de ejemplo ---------- */
+const FILAS = [
+  ['Gael Guardia', 'G001', 'Plaza Norte', '07:00–15:00', '06:52', '—', 'En turno', 'info'],
+  ['Gema Guardia', 'G002', 'Bodega Sur', '07:00–15:00', '07:18', '15:02', 'Retardo', 'warn'],
+  ['Luis Ortega', 'G014', 'Plaza Norte', '07:00–15:00', '06:58', '15:01', 'Cumplido', 'ok'],
+  ['Rosa Medina', 'G009', 'Bodega Sur', '15:00–23:00', '—', '—', 'Falta', 'mal'],
+  ['Iván Duarte', 'G021', 'Plaza Norte', '15:00–23:00', '14:55', '—', 'En turno', 'info'],
+  ['Marta Soto', 'G017', 'Bodega Sur', '23:00–07:00', '—', '—', 'Programado', 'neu'],
+];
+const NAV = [['envivo', 'En vivo'], ['asistencia', 'Asistencia'], ['rondines', 'Rondines'], ['incidencias', 'Incidencias', 2], ['visitantes', 'Visitantes'], ['bitacoras', 'Bitácoras'], ['sinconexion', 'Sin conexión'], ['alertas', 'Alertas', 1, 'rojo'], ['turnos', 'Turnos'], ['sitios', 'Sitios'], ['personal', 'Personal'], ['reportes', 'Reportes'], ['empresa', 'Empresa'], ['auditoria', 'Bitácora de cambios']];
+const navItems = (act) => NAV.map(([k, t, n, c]) => `<a href="#" onclick="return false" ${k === act ? 'aria-current="page"' : ''}>${ic(k)}${t}${n ? `<span class="n${c ? '' : ' az'}">${n}</span>` : ''}</a>`).join('');
+
+/* ---------- piezas reutilizables ---------- */
+const filtrosAsist = `<div class="filtros">
+  <div class="fld"><label>Buscar guardia</label><div class="bus">${ic('buscar', 18)}<input type="search" placeholder="Nombre o número"></div></div>
+  ${fld('Sitio', sel(['Todos', 'Plaza Norte', 'Bodega Sur']))}
+  ${fld('Estado', sel(['Todos', 'En turno', 'Cumplido', 'Retardo', 'Falta']))}
+  ${fld('Desde', '<input type="date" value="2026-10-05">')}
+  <div class="btns">${btn('Filtrar', 'pri', 'filtro')}${btn('Limpiar', 'sec')}</div></div>`;
+const filaT = (f) => `<div class="fl c-${f[7]}"><div class="nom"><span class="av">${ini(f[0])}</span><div><b>${f[0]}</b><small>N.º ${f[1]}</small></div></div><div>${f[2]}</div><div class="tn">${f[3]}</div><div class="tn ${f[4] === '—' ? 'vacio-celda' : ''}">${f[4]}</div><div class="tn ${f[5] === '—' ? 'vacio-celda' : ''}">${f[5]}</div><div>${bd(f[6], f[7])}</div><div>${ib('mas', 'Más acciones de ' + f[0])}</div></div>`;
+const tablaAsist = (n = 6) => `<div class="tablaw"><div class="tabla"><div class="cab"><div>Guardia</div><div>Sitio</div><div>Turno</div><div>Entrada</div><div>Salida</div><div>Estado</div><div></div></div>${FILAS.slice(0, n).map(filaT).join('')}<div class="pie-t"><span>Mostrando 1–${n} de 9 turnos</span>${pag()}</div></div></div>`;
+const pag = () => `<div class="pg" role="navigation" aria-label="Paginación"><button type="button" disabled aria-label="Anterior">${ic('izq', 18)}</button><button type="button" aria-current="page">1</button><button type="button">2</button><button type="button" aria-label="Siguiente">${ic('der', 18)}</button></div>`;
+const tcard = (f) => `<div class="tcard c-${f[7]}"><div class="top"><span class="av">${ini(f[0])}</span><div class="nom"><b>${f[0]}</b><small>${f[2]}</small></div>${bd(f[6], f[7])}</div><dl><div><dt>Turno</dt><dd>${f[3].replace('–', '–')}</dd></div><div><dt>Entrada</dt><dd>${f[4]}</dd></div><div><dt>Salida</dt><dd>${f[5]}</dd></div></dl><div class="ac">${btn('Ver detalle', 'sec', 'ojo')}</div></div>`;
+const kpisAsist = `<div class="kpis">${kpi('reloj', 'info', 2, 'En turno')}${kpi('ok', 'ok', 1, 'Cumplidos')}${kpi('alertas', 'warn', 1, 'Retardos')}${kpi('incidencias', 'mal', 1, 'Faltas')}</div>`;
+const topPC = (rol = 'Administrador') => `<div class="tb"><span class="lema">Lealtad, Honradez, Disciplina</span><div class="u"><span class="ibt">${ic('alertas', 22)}<span class="n">1</span></span><span class="av" style="background:var(--navy-700);color:#fff">AA</span><span>Ana Admin<small>${rol}</small></span></div></div>`;
+const topMV = (t) => `<div class="tb"><span class="ibt">${ic('menu', 24)}</span><b style="font:700 16px/1.2 var(--font)">MARPEC · ${t}</b><div class="u"><span class="ibt">${ic('alertas', 22)}<span class="n">1</span></span></div></div>`;
+const lat = (act) => `<aside class="lat"><div class="marca">${ic('escudo', 30)}<div>MARPEC<small>Lealtad, Honradez, Disciplina</small></div></div>${navItems(act)}</aside>`;
+const pcWrap = (act, cuerpo) => `<div class="es pc">${lat(act)}<div style="min-width:0;display:flex;flex-direction:column">${topPC()}<div class="cont">${cuerpo}</div></div></div>`;
+const mvWrap = (t, cuerpo) => `<div class="es mv">${topMV(t)}<div class="cont">${cuerpo}</div></div>`;
+
+/* ---------- PANTALLA a: Asistencia ---------- */
+const pAsistPC = () => pcWrap('asistencia', `
+  <div class="ph"><div><h1>Asistencia</h1><p>Semana del 5 al 11 de octubre · hora de Hermosillo</p></div><div class="acc">${btn('Exportar CSV', 'sec', 'bajar')}</div></div>
+  ${kpisAsist}${filtrosAsist}${tablaAsist(6)}`);
+const pAsistMV = () => mvWrap('Administración', `
+  <div class="ph"><div><h1>Asistencia</h1><p>Semana del 5 al 11 de octubre</p></div><div class="acc">${btn('Exportar CSV', 'sec', 'bajar')}</div></div>
+  ${kpisAsist}
+  <div class="filtros"><div class="fld"><label>Buscar guardia</label><div class="bus">${ic('buscar', 18)}<input type="search" placeholder="Nombre o número"></div></div>${fld('Sitio', sel(['Todos', 'Plaza Norte', 'Bodega Sur']))}${fld('Estado', sel(['Todos', 'En turno', 'Cumplido']))}<div class="btns">${btn('Filtrar', 'pri', 'filtro')}${btn('Limpiar', 'sec')}</div></div>
+  ${FILAS.slice(0, 4).map(tcard).join('')}
+  <div class="pie-t" style="border-radius:var(--r-md);border:1px solid var(--line);justify-content:center">${pag()}</div>`);
+
+/* ---------- PANTALLA b: Alta de guardia ---------- */
+const formGuardia = (mv) => `<div class="pnl"><h2>Datos del guardia</h2>
+  <div class="grid2">${fld('Número de empleado', '<input type="text" value="G024">', '3 a 12 letras o números.')}${fld('Nombre completo', '<input type="text" value="Carlos Aguirre">')}</div>
+  ${fld('PIN inicial', '<input type="password" value="12">', '4 a 6 dígitos. Entrégaselo al guardia en persona.', 'El PIN debe tener entre 4 y 6 dígitos.')}
+  <div class="fila" style="justify-content:flex-end;margin-top:4px">${btn('Cancelar', 'sec')}${btn('Crear guardia', 'pri', 'masusr')}</div></div>`;
+const pAltaPC = () => pcWrap('personal', `
+  <div><div class="mig">${ic('atras', 16)}Personal</div><div class="ph"><div><h1>Alta de guardia</h1><p>El guardia entrará con su número de empleado y su PIN.</p></div></div></div>
+  <div class="tabs" role="tablist"><button class="tab" role="tab" aria-selected="true">${ic('usuario', 18)}Guardia</button><button class="tab" role="tab" aria-selected="false">${ic('personal', 18)}Supervisor</button></div>
+  <div class="dos-col"><div style="display:flex;flex-direction:column;gap:16px">${formGuardia()}
+    <div class="pnl"><h2>Opciones de acceso</h2>
+      <label class="sw"><input type="checkbox" checked> Cuenta activa al crearla</label>
+      <label class="chk"><input type="checkbox"> Marcar como guardia de prueba</label></div></div>
+    <div style="display:flex;flex-direction:column;gap:12px">
+      <div class="al c-info">${ic('info', 20)}<div class="cuerpo"><b>Antes de entregar el PIN</b>El PIN solo se muestra al crearlo. Si el guardia lo olvida, se restablece desde Personal.</div></div>
+      <div class="al c-warn">${ic('alertas', 20)}<div class="cuerpo"><b>Tres intentos fallidos</b>Después de varios PIN incorrectos el acceso se bloquea hasta que lo desbloquees.</div></div></div></div>`);
+const pAltaMV = () => mvWrap('Administración', `
+  <div><div class="mig">${ic('atras', 16)}Personal</div><div class="ph"><div><h1>Alta de guardia</h1><p>Entra con número de empleado y PIN.</p></div></div></div>
+  <div class="tabs" role="tablist"><button class="tab" role="tab" aria-selected="true">Guardia</button><button class="tab" role="tab" aria-selected="false">Supervisor</button></div>
+  <div class="pnl"><h2>Datos del guardia</h2>
+    ${fld('Número de empleado', '<input type="text" value="G024">', '3 a 12 letras o números.')}${fld('Nombre completo', '<input type="text" value="Carlos Aguirre">')}
+    ${fld('PIN inicial', '<input type="password" value="12">', '4 a 6 dígitos. Entrégaselo en persona.', 'El PIN debe tener entre 4 y 6 dígitos.')}
+    <label class="sw"><input type="checkbox" checked> Cuenta activa al crearla</label>
+    <label class="chk"><input type="checkbox"> Marcar como guardia de prueba</label>
+    ${btn('Crear guardia', 'pri', 'masusr', 'blk')}${btn('Cancelar', 'sec', '', 'blk')}</div>
+  <div class="al c-info">${ic('info', 20)}<div class="cuerpo"><b>Antes de entregar el PIN</b>Solo se muestra al crearlo. Si lo olvida, se restablece desde Personal.</div></div>`);
+
+/* ---------- PANTALLA c: Incidencia con seguimiento + modal ---------- */
+const seg = `<ol class="lin">
+  <li class="c-mal"><span class="p">${ic('incidencias', 18)}</span><div><b>Reporte del guardia</b><div class="m">Gael Guardia · hoy 21:42</div><p>Puerta lateral de la bodega abierta durante el rondín. Se cerró y se avisó al supervisor.</p></div></li>
+  <li class="c-info"><span class="p">${ic('nota', 18)}</span><div><b>Comentario</b><div class="m">Sara Supervisora · hoy 21:58</div><p>Se revisará la chapa mañana.</p></div></li>
+  <li class="c-warn"><span class="p">${ic('reloj', 18)}</span><div><b>Cambió a En atención</b><div class="m">Sara Supervisora · hoy 22:05</div></div></li></ol>`;
+const resumen = `<dl class="dato"><dt>Sitio</dt><dd>Bodega Sur</dd><dt>Tipo</dt><dd>Puerta o acceso abierto</dd><dt>Guardia</dt><dd>Gael Guardia · N.º G001</dd><dt>Fecha y hora</dt><dd>Hoy 21:42</dd></dl>`;
+const modalForm = (hoja) => `<div class="mod${hoja ? ' hoja' : ''}" role="dialog" aria-label="Cerrar incidencia"><div class="cab"><h4>Cerrar incidencia</h4>${ib('x', 'Cerrar ventana')}</div>
+  <p style="font:var(--t-small);color:var(--muted)">Pasar la incidencia «Puerta o acceso abierto» a «Cerrada».</p>
+  ${fld('Nota', '<textarea>La chapa se reparó y la puerta quedó asegurada.</textarea>', 'Queda como registro nuevo con tu nombre y la hora.')}
+  <div class="pie">${btn('Cancelar', 'sec')}${btn('Cerrar incidencia', 'pel', 'check')}</div></div>`;
+const detalleCuerpo = (mv) => `
+  <div><div class="mig">${ic('atras', 16)}Incidencias</div>
+  <div class="ph"><div style="display:flex;flex-direction:column;gap:8px"><h1>Puerta o acceso abierto</h1><div class="fila">${bd('Gravedad alta', 'mal', true)}${bd('En atención', 'info')}${bd('2 fotos', 'neu')}</div></div>
+  <div class="acc">${btn('Comentar', 'sec', 'nota')}${btn('Cerrar incidencia', 'pel', 'check')}</div></div></div>
+  <div class="${mv ? '' : 'dos-col'}" style="display:flex;flex-direction:${mv ? 'column' : 'row'};gap:16px;align-items:flex-start"><div class="pnl" style="flex:1.2;width:100%"><h2>Resumen</h2>${resumen}<hr style="border:0;border-top:1px solid var(--line);width:100%;margin:2px 0"><h2>Descripción</h2><p style="font:var(--t-body)">Puerta lateral de la bodega abierta durante el rondín. Se cerró y se avisó al supervisor.</p></div>
+  <div class="pnl" style="flex:1;width:100%"><h2>Seguimiento</h2>${seg}</div></div>`;
+const pDetPC = () => `<div class="es pc" style="position:relative">${lat('incidencias')}<div style="min-width:0;display:flex;flex-direction:column">${topPC()}<div class="cont">${detalleCuerpo(false)}</div></div>
+  <div style="position:absolute;inset:0;background:rgba(5,30,62,.55);display:flex;align-items:center;justify-content:center">${modalForm(false)}</div></div>`;
+const pDetMV = () => `<div class="es mv" style="position:relative;overflow:hidden;height:800px">${topMV('Incidencias')}<div class="cont">${detalleCuerpo(true)}</div>
+  <div style="position:absolute;inset:0;background:rgba(5,30,62,.55);display:flex;align-items:flex-end">${modalForm(true)}</div></div>`;
+
+/* ---------- LÁMINA ---------- */
+const alert = (c, i, t, d) => `<div class="al c-${c}">${ic(i, 20)}<div class="cuerpo"><b>${t}</b>${d}</div></div>`;
+const PANELES = [
+  ['1', 'Encabezado de página', 's12', `<div class="dual d2"><div><div class="et">Escritorio</div><div class="marco"><div class="mig">${ic('atras', 16)}Incidencias</div><div class="ph"><div><h1>Incidencias</h1><p>Últimos 30 días · todos los sitios</p></div><div class="acc">${btn('Exportar CSV', 'sec', 'bajar')}${btn('Filtrar', 'pri', 'filtro')}</div></div></div></div>
+    <div><div class="et">Celular</div><div class="cel"><div class="ph"><div><h1>Incidencias</h1><p>Últimos 30 días · todos los sitios</p></div><div class="acc">${btn('Exportar CSV', 'sec', 'bajar')}${btn('Filtrar', 'pri', 'filtro')}</div></div></div></div></div>
+    <p class="nota">Título 24/700 marino (22 en celular), subtítulo 14 gris, máximo dos acciones; en celular ocupan todo el ancho. La acción principal siempre va a la derecha en escritorio.</p>`],
+  ['2', 'Tarjetas de indicadores (KPI)', 's12', `<div class="dual d2"><div><div class="et">Escritorio · 4 en fila</div><div class="kpis">${kpi('reloj', 'info', 2, 'En turno')}${kpi('ok', 'ok', 4, 'Cubiertos')}${kpi('alertas', 'warn', 1, 'Retardos')}${kpi('panico', 'mal', 1, 'Pánico activo', 'dest')}</div></div>
+    <div><div class="et">Celular · 2×2</div><div class="cel"><div class="kpis">${kpi('reloj', 'info', 2, 'En turno')}${kpi('ok', 'ok', 4, 'Cubiertos')}${kpi('alertas', 'warn', 1, 'Retardos')}${kpi('panico', 'mal', 1, 'Pánico activo', 'dest')}</div></div></div></div>
+    <p class="nota">Alto ~64 px. El ícono va en un chip suave del color del estado; el número usa el color de texto principal. Solo el indicador en riesgo se resalta con fondo rojo claro y borde rojo.</p>`],
+  ['3', 'Franja de filtros', 's12', `<div class="dual d2"><div><div class="et">Escritorio · una fila</div>${filtrosAsist}</div><div><div class="et">Celular · apilada</div><div class="cel"><div class="filtros"><div class="fld"><label>Buscar guardia</label><div class="bus">${ic('buscar', 18)}<input type="search" placeholder="Nombre o número"></div></div>${fld('Sitio', sel(['Todos']))}${fld('Estado', sel(['Todos']))}${fld('Desde', '<input type="date" value="2026-10-05">')}${fld('Hasta', '<input type="date" value="2026-10-11">')}<div class="btns">${btn('Filtrar', 'pri', 'filtro')}${btn('Limpiar', 'sec')}</div></div></div></div></div>`],
+  ['4', 'Tabla de datos', 's12', `<div class="et">Escritorio · tira de color = estado, avatar con iniciales, etiqueta, acciones y paginación</div>${tablaAsist(4)}
+    <p class="nota">Encabezado 42 px en mayúsculas 12/700; filas de 60 px, texto 14. La tira lateral de 4 px repite el color de la etiqueta de estado (no es la única señal: la etiqueta lleva texto). Cifras con números tabulares.</p>`],
+  ['5', 'Tabla en celular (tarjetas)', 's6', `<div class="et">Cada fila se vuelve una tarjeta</div><div class="cel">${FILAS.slice(1, 4).map(tcard).join('')}</div>`],
+  ['6', 'Botones', 's6', `<div class="et">Variantes · 44 px (48 en celular)</div><div class="fila">${btn('Guardar', 'pri')}${btn('Cancelar', 'sec')}${btn('Cerrar incidencia', 'pel', 'check')}${btn('MARCAR ENTRADA', 'ver', 'entrada')}<button class="btn pri" disabled>Deshabilitado</button></div>
+    <div class="et" style="margin-top:6px">Con ícono, chicos (dentro de tablas, 36 px solo en escritorio) y solo ícono</div><div class="fila">${btn('Exportar CSV', 'sec', 'bajar')}${btn('Filtrar', 'pri', 'filtro', 'ch')}${btn('Ver detalle', 'sec', 'ojo', 'ch')}${btn('Ver más', 'fan', 'der')}${ib('mas', 'Más acciones')}${ib('x', 'Cerrar')}</div>
+    <div class="et" style="margin-top:6px">Foco visible y celular</div><div class="fila"><button class="btn pri" style="box-shadow:var(--foco);border-color:var(--azul)" type="button">Con foco de teclado</button></div><div class="cel" style="margin-top:4px">${btn('Crear guardia', 'pri', 'masusr', 'blk')}${btn('Cancelar', 'sec', '', 'blk')}</div>
+    <p class="nota">Una sola acción primaria (azul) por pantalla. Rojo solo para acciones destructivas o de cierre; verde solo para la acción positiva del guardia (marcar).</p>`],
+  ['7', 'Formularios', 's12', `<div class="dual d2"><div><div class="et">Escritorio</div><div class="marco"><div class="grid2">
+      ${fld('Campo de texto', '<input type="text" value="Carlos Aguirre">', 'Texto de ayuda en gris, 14 px.')}
+      ${fld('Selector', sel(['Plaza Norte', 'Bodega Sur']))}
+      ${fld('Fecha', '<input type="date" value="2026-10-05">')}
+      ${fld('Con error', '<input type="password" value="12">', '', 'El PIN debe tener entre 4 y 6 dígitos.')}
+      ${fld('Deshabilitado', '<input type="text" value="No editable" disabled>')}
+      <div class="fld"><span class="l">Opciones</span><label class="sw"><input type="checkbox" checked> Cuenta activa</label><label class="chk"><input type="checkbox" checked> Sitio activo</label><label class="chk"><input type="checkbox"> Guardia de prueba</label></div></div>
+      <div style="margin-top:12px">${fld('Área de texto', '<textarea placeholder="Describe qué ocurrió"></textarea>', 'Queda como registro con tu nombre y la hora.')}</div></div></div>
+    <div><div class="et">Celular · campos de 48 px</div><div class="cel">${fld('Número de empleado', '<input type="text" value="G024">', '3 a 12 letras o números.')}${fld('Sitio', sel(['Plaza Norte', 'Bodega Sur']))}${fld('PIN inicial', '<input type="password" value="12">', '', 'El PIN debe tener entre 4 y 6 dígitos.')}<label class="sw"><input type="checkbox" checked> Cuenta activa</label><label class="chk"><input type="checkbox"> Guardia de prueba</label></div></div></div>
+    <p class="nota">Etiqueta siempre visible arriba (nunca solo placeholder). Borde de campo 2 px gris pizarra (3:1); el error cambia a rojo e incluye ícono y texto, nunca solo color. El interruptor se usa para activar/desactivar; la casilla para elegir opciones.</p>`],
+  ['8', 'Ventana modal y hoja inferior', 's12', `<div class="dual d2"><div><div class="et">Escritorio · confirmar y formulario</div><div class="fondo" style="gap:14px;flex-wrap:wrap;align-items:flex-start"><div class="mod" style="max-width:300px"><div class="cab"><h4>Regenerar QR</h4></div><p style="font:var(--t-small);color:var(--muted)">El QR impreso dejará de funcionar; tendrás que imprimir y colocar uno nuevo.</p><div class="pie">${btn('Cancelar', 'sec')}${btn('Regenerar', 'pel')}</div></div>${modalForm(false).replace('class="mod"', 'class="mod" style="max-width:360px"')}<div class="mod" style="max-width:300px"><div class="cab"><h4>Detalle de la marca</h4>${ib('x', 'Cerrar')}</div><dl class="dato" style="grid-template-columns:90px 1fr"><dt>Guardia</dt><dd>Gael Guardia</dd><dt>Sitio</dt><dd>Plaza Norte</dd><dt>Entrada</dt><dd>06:52</dd><dt>Estado</dt><dd>${bd('Cumplido', 'ok')}</dd></dl><div class="pie">${btn('Cerrar', 'sec')}</div></div></div></div>
+    <div><div class="et">Celular · hoja inferior</div><div class="cel" style="padding:0"><div class="fondo abajo" style="min-height:470px">${modalForm(true)}</div></div></div></div>
+    <p class="nota">Modal: máx. 480 px, radio 18, sombra grande, fondo marino al 55 %. Cierra con ✕, Esc y «Cancelar». Hoja inferior en celular: botones a todo el ancho, la acción principal arriba y «Cancelar» debajo. Rojo solo si la acción es destructiva o cierra un registro.</p>`],
+  ['9', 'Alertas y avisos', 's12', `<div class="dual d2"><div style="display:flex;flex-direction:column;gap:10px">
+    <div class="al pan">${ic('panico', 26)}<div class="cuerpo"><b class="pulso">ALERTA DE PÁNICO · Plaza Norte</b>Gael Guardia · hace 1 min</div>${btn('ATENDER', 'sec')}</div>
+    ${alert('warn', 'alertas', 'Retardo de entrada', 'Gema Guardia marcó entrada a las 07:18, 18 min después del inicio.')}
+    ${alert('info', 'info', 'Rondín programado', 'El rondín de las 22:00 se puede iniciar desde las 21:30.')}
+    ${alert('ok', 'ok', 'Turno cubierto', 'Hay un guardia con entrada marcada en Plaza Norte.')}
+    <div class="al lic">${ic('reloj', 20)}<div class="cuerpo"><b>Periodo de demostración</b>Vence el 4 de noviembre. Para continuar, contacta a Diagonal Catorce.</div></div>
+    <div class="toast">${ic('ok', 20)}Seguimiento agregado.</div></div>
+    <div><div class="et">Celular</div><div class="cel"><div class="al pan">${ic('panico', 26)}<div class="cuerpo"><b class="pulso">ALERTA DE PÁNICO</b>Plaza Norte · hace 1 min</div>${btn('ATENDER', 'sec', '', 'blk')}</div>${alert('warn', 'alertas', 'Retardo de entrada', 'Gema Guardia · 07:18.')}<div class="al lic">${ic('reloj', 20)}<div class="cuerpo"><b>Demostración</b>Vence el 4 de noviembre.</div></div><div class="toast">${ic('ok', 20)}Seguimiento agregado.</div></div></div></div>
+    <p class="nota">Pánico: único elemento con rojo sólido; mantiene un pulso suave (se apaga con «reducir movimiento»). Avisos suaves: fondo claro + borde + ícono + título. El aviso de licencia es ámbar sólido con texto marino. Los toast duran 3.5 s (7 s si son errores).</p>`],
+  ['10', 'Estados vacíos y de carga', 's6', `<div class="et">Vacío compacto (una línea de título + una de ayuda)</div><div class="vacio c-neu"><span class="ico-chip">${ic('bandeja', 22)}</span><div><b>Sin incidencias en este periodo</b><span>Cambia las fechas o el filtro para ver otras.</span></div></div>
+    <div class="et" style="margin-top:6px">Cargando · esqueleto y texto</div><div class="esq"><i style="width:40%"></i><i style="width:92%"></i><i style="width:78%"></i></div><div class="cargando"><span class="giro">${ic('giro', 20)}</span>Cargando…</div>
+    <div class="vacio c-mal"><span class="ico-chip">${ic('info', 22)}</span><div><b>No se pudo cargar</b><span>Revisa tu conexión e intenta de nuevo.</span></div></div>`],
+  ['11', 'Menú lateral', 's6', `<div class="fila" style="align-items:flex-start;gap:14px"><div class="menu"><div class="marca">${ic('escudo', 28)}<div>MARPEC<small>Lealtad, Honradez, Disciplina</small></div></div>
+    <a href="#" onclick="return false">${ic('envivo')}En vivo</a><a href="#" onclick="return false" aria-current="page">${ic('asistencia')}Asistencia</a><a href="#" onclick="return false">${ic('rondines')}Rondines</a><a href="#" onclick="return false">${ic('incidencias')}Incidencias<span class="n az">2</span></a><a href="#" onclick="return false">${ic('alertas')}Alertas<span class="n">1</span></a><a href="#" onclick="return false">${ic('personal')}Personal</a></div>
+    <div style="flex:1;min-width:190px;display:flex;flex-direction:column;gap:8px;font:var(--t-small);color:var(--muted)"><p><b style="color:var(--text)">Normal:</b> texto gris claro #E2E8F0.</p><p><b style="color:var(--text)">Seleccionado:</b> fondo #0C3B73 y marca ámbar de 3 px a la izquierda.</p><p><b style="color:var(--text)">Contador ámbar:</b> pendientes (p. ej. incidencias abiertas).</p><p><b style="color:var(--text)">Contador rojo:</b> solo alertas de pánico activas.</p><p>En celular el menú se abre desde ☰ y las filas miden 48 px.</p></div></div>`],
+  ['12', 'Pestañas, etiquetas, paginación y progreso', 's12', `<div class="dual d2"><div style="display:flex;flex-direction:column;gap:14px"><div class="tabs" role="tablist"><button class="tab" role="tab" aria-selected="true">${ic('usuario', 18)}Guardia</button><button class="tab" role="tab" aria-selected="false">${ic('personal', 18)}Supervisor</button><button class="tab" role="tab" aria-selected="false">Reglas</button></div>
+    <div class="fila"><div class="seg" role="group" aria-label="Periodo"><button aria-pressed="true">Hoy</button><button aria-pressed="false">Semana</button><button aria-pressed="false">Mes</button></div></div>
+    <div><div class="et">Etiquetas de estado</div><div class="fila">${bd('Cumplido', 'ok')}${bd('En turno', 'info')}${bd('Retardo', 'warn')}${bd('Falta', 'mal')}${bd('Programado', 'neu')}</div></div>
+    <div><div class="et">Prioridad / gravedad (relleno)</div><div class="fila">${bd('Gravedad alta', 'mal', true)}${bd('Media', 'warn', true)}${bd('Baja', 'info', true)}${bd('Abierta', 'mal')}${bd('En atención', 'info')}${bd('Cerrada', 'ok')}</div></div>
+    <div><div class="et">Paginación</div>${pag()}</div></div>
+    <div><div class="cel"><div class="prog c-ok"><div class="l">Avance del turno<span>5 h 20 min de 8 h</span></div><div class="b"><i style="width:66%"></i></div></div><div class="prog c-info"><div class="l">Rondín en curso<span>2 de 3 puntos</span></div><div class="b"><i style="width:66%"></i></div></div><div class="prog c-warn"><div class="l">Tiempo restante del rondín<span>12 min</span></div><div class="b"><i style="width:22%"></i></div></div><div class="prog c-mal"><div class="l">Rondín vencido<span>0 de 3 puntos</span></div><div class="b"><i style="width:4%"></i></div></div></div></div></div>
+    <p class="nota">Pestañas: subrayado azul de 3 px bajo el texto marino. Etiquetas: 24 px, mayúsculas 12/700 con punto de color; la versión rellena solo se usa para gravedad/prioridad. Barras de 10 px con el color del estado y el valor escrito al lado.</p>`],
+];
+
+document.getElementById('board').innerHTML = PANELES.map(([n, t, s, h]) => `<section class="pn ${s.replace('s12', '')}"><h3><b>${n}</b>${t}</h3>${h}</section>`).join('');
+
+/* ---------- Pantallas escaladas ---------- */
+const PANT = [
+  ['(a) Lista con tabla · Asistencia', pAsistPC, pAsistMV, 'Indicadores arriba, filtros en una franja, tabla con tira de color y paginación. En celular cada fila es una tarjeta.'],
+  ['(b) Formulario · Alta de guardia', pAltaPC, pAltaMV, 'Pestañas Guardia/Supervisor (como la app actual), campos con ayuda y error, avisos a la derecha. En celular una columna con botones a todo el ancho.'],
+  ['(c) Detalle con modal · Incidencia con seguimiento', pDetPC, pDetMV, 'Resumen y línea de seguimiento; «Cerrar incidencia» abre la ventana (hoja inferior en celular).'],
+];
+const NOTAS = [
+  ['Cada fila de la tabla se convierte en una tarjeta con la misma tira de color y etiqueta de estado.', 'Los cuatro indicadores pasan a 2 × 2 y los filtros se apilan; «Filtrar» y «Limpiar» ocupan todo el ancho.', 'Paginación con botones de 48 px. El menú lateral se abre desde ☰ y sus filas miden 48 px.'],
+  ['Una sola columna; el aviso informativo baja al final del formulario.', 'Campos de 48 px con etiqueta arriba. El error lleva ícono y texto, no solo color rojo.', 'Botón principal arriba y «Cancelar» debajo, ambos a todo el ancho.'],
+  ['La ventana se convierte en hoja inferior: asa superior, radio 18 y botones a todo el ancho.', 'La acción de cierre (rojo) va arriba y «Cancelar» debajo, para que el pulgar no la toque por accidente.', 'El seguimiento se apila debajo del resumen, con la misma línea de tiempo.'],
+];
+document.getElementById('pant').innerHTML = PANT.map(([t, , , d], i) => `<div style="display:flex;flex-direction:column;gap:12px"><div><h3 style="font:var(--t-h2);color:var(--navy);margin-bottom:2px">${t}</h3><p style="font:var(--t-small);color:var(--muted)">${d}</p></div>
+  <div><div class="et">Escritorio · 1440 px</div><div class="fit" data-w="1440" id="pc${i}"></div></div>
+  <div style="display:grid;grid-template-columns:minmax(0,360px) minmax(0,1fr);gap:20px;align-items:start" class="fila-cel"><div><div class="et">Celular · 360 px</div><div class="fit" data-w="360" id="mv${i}"></div></div>
+  <div class="pnl" style="max-width:560px"><h2>Adaptación a celular</h2><ul style="margin:0;padding-left:18px;display:flex;flex-direction:column;gap:8px;font:var(--t-small);color:var(--text)">${NOTAS[i].map((n) => '<li>' + n + '</li>').join('')}</ul></div></div></div>`).join('');
+PANT.forEach(([, a, b], i) => { document.getElementById('pc' + i).innerHTML = a(); document.getElementById('mv' + i).innerHTML = b(); });
+function escalar() {
+  document.querySelectorAll('.fit').forEach((f) => {
+    const es = f.firstElementChild, w = Number(f.dataset.w), k = Math.min(1, f.clientWidth / w);
+    es.style.transform = `scale(${k})`;
+    f.style.height = Math.ceil(es.offsetHeight * k) + 'px';
+  });
+}
+escalar();
+addEventListener('resize', escalar);
+if (document.fonts && document.fonts.ready) document.fonts.ready.then(escalar);
+setTimeout(escalar, 400);
+addEventListener('load', escalar);
+
+/* ---------- Tokens ---------- */
+document.getElementById('cod').textContent = document.getElementById('tokens').textContent.trim();
+document.getElementById('copiar').addEventListener('click', async () => {
+  const t = document.getElementById('cod').textContent, c = document.getElementById('copiado');
+  try { await navigator.clipboard.writeText(t); c.textContent = 'Copiado.'; }
+  catch { const r = document.createRange(); r.selectNodeContents(document.getElementById('cod')); const s = getSelection(); s.removeAllRanges(); s.addRange(r); c.textContent = 'Seleccionado: usa Ctrl+C.'; }
+});
+const L = (h) => { const c = [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16) / 255).map((v) => (v <= .03928 ? v / 12.92 : ((v + .055) / 1.055) ** 2.4)); return .2126 * c[0] + .7152 * c[1] + .0722 * c[2]; };
+const CR = (a, b) => { const [x, y] = [L(a), L(b)].sort((p, q) => q - p); return (x + .05) / (y + .05); };
+const PARES = [
+  ['Texto sobre botón primario', '#FFFFFF', '#1D6AF5', 'AA texto'], ['Texto sobre botón verde', '#FFFFFF', '#15803D', 'AA texto'], ['Texto sobre botón rojo', '#FFFFFF', '#DC2626', 'AA texto'], ['Texto sobre pánico', '#FFFFFF', '#B91C1C', 'AA texto'],
+  ['Texto sobre turquesa (Bitácoras)', '#FFFFFF', '#0E7490', 'AA texto'], ['Texto sobre morado (Visitantes)', '#FFFFFF', '#7C3AED', 'AA texto'], ['Texto marino sobre ámbar', '#051E3E', '#F59E0B', 'AA texto'],
+  ['Título marino sobre fondo', '#082D5B', '#F8FAFC', 'AA texto'], ['Texto principal sobre fondo', '#0F172A', '#F8FAFC', 'AA texto'], ['Texto secundario sobre blanco', '#475569', '#FFFFFF', 'AA texto'], ['Texto secundario sobre fondo', '#475569', '#F8FAFC', 'AA texto'],
+  ['Etiqueta azul', '#1E3A8A', '#DBEAFE', 'AA texto'], ['Etiqueta verde', '#166534', '#DCFCE7', 'AA texto'], ['Etiqueta roja', '#991B1B', '#FEE2E2', 'AA texto'], ['Etiqueta ámbar', '#78350F', '#FEF3C7', 'AA texto'],
+  ['Menú: texto normal', '#E2E8F0', '#051E3E', 'AA texto'], ['Menú: texto seleccionado', '#FFFFFF', '#0C3B73', 'AA texto'], ['Borde de campo sobre blanco', '#64748B', '#FFFFFF', 'AA no-texto (3:1)'], ['Íconos rojos sobre blanco', '#EF4444', '#FFFFFF', 'AA no-texto (3:1)'], ['Íconos verdes sobre blanco', '#16A34A', '#FFFFFF', 'AA no-texto (3:1)'],
+];
+const fila = (n, f, b, tipo) => { const r = CR(f, b), min = tipo.includes('3:1') ? 3 : 4.5; return `<tr><td><span class="sw-c"><i style="background:${f}"></i><i style="background:${b}"></i>${n}</span></td><td class="n">${r.toFixed(2)}:1</td><td class="${r >= min ? 'ok-t' : ''}">${r >= min ? '✔ ' : '✖ '}${tipo}</td></tr>`; };
+const muest = (n, v, t, txt) => `<tr><td><span class="sw-c"><i style="background:${v}"></i><b>${n}</b></span></td><td class="n">${v}</td><td>${txt}</td></tr>`;
+document.getElementById('tkr').innerHTML = `
+ <div class="pnl"><h2>Reglas de uso del color</h2><table class="tt"><tr><th>Token</th><th>Valor</th><th>Cuándo usarlo</th></tr>
+  ${muest('--navy', '#082D5B', '', 'Menú, barra superior, títulos, botón secundario. Es estructura, no estado.')}
+  ${muest('--azul-fill', '#1D6AF5', '', 'Única acción primaria por pantalla, enlaces, foco. Texto blanco encima.')}
+  ${muest('--verde-fill', '#15803D', '', 'Solo «bien»: cubierto, cumplido, MARCAR ENTRADA. Nunca decorativo.')}
+  ${muest('--rojo-fill', '#DC2626', '', 'Riesgo o acción destructiva: falta, gravedad alta, cerrar un registro.')}
+  ${muest('--rojo-pan', '#B91C1C', '', 'Exclusivo del pánico (barra, aviso y botón). Ningún otro uso.')}
+  ${muest('--ambar', '#F59E0B', '', 'Advertencia y licencia/demo. Texto marino #051E3E encima; el blanco no pasa.')}
+  ${muest('--turquesa / --morado', '#0E7490', '', 'Solo categorías Bitácoras / Visitantes (#7C3AED). Nunca para estado.')}
+  ${muest('*-claro + *-txt', '#DBEAFE', '', 'Fondos suaves de etiquetas y avisos con su texto oscuro del mismo tono.')}
+ </table></div>
+ <div class="pnl"><h2>Contraste verificado (WCAG AA)</h2><table class="tt"><tr><th>Par</th><th>Razón</th><th>Criterio</th></tr>${PARES.map((p) => fila(...p)).join('')}</table><p class="nota" style="font:var(--t-small);color:var(--muted)">Calculado en esta página con la fórmula WCAG 2.1. El texto normal exige 4.5:1; íconos y bordes de campo, 3:1.</p></div>
+ <div class="pnl"><h2>Tipografía (Inter) por nivel</h2><table class="tt"><tr><th>Nivel</th><th>Tamaño / peso</th><th>Uso</th></tr>
+  <tr><td style="font:var(--t-display)">28</td><td class="n">28 / 700 · cel 24</td><td>Número de indicador</td></tr>
+  <tr><td style="font:var(--t-h1)">Título</td><td class="n">24 / 700 · cel 22</td><td>Título de página (H1)</td></tr>
+  <tr><td style="font:var(--t-h2)">Sección</td><td class="n">18 / 700</td><td>Título de panel o modal (H2)</td></tr>
+  <tr><td style="font:var(--t-h3)">Tarjeta</td><td class="n">16 / 600</td><td>Nombre en tarjeta (H3)</td></tr>
+  <tr><td style="font:var(--t-body)">Cuerpo</td><td class="n">16 / 400</td><td>Texto base; mínimo en celular</td></tr>
+  <tr><td style="font:var(--t-small)">Pequeño</td><td class="n">14 / 400</td><td>Tablas de escritorio, ayudas</td></tr>
+  <tr><td style="font:var(--t-label)">Etiqueta</td><td class="n">14 / 600</td><td>Etiquetas de campo, botones chicos</td></tr>
+  <tr><td style="font:var(--t-caption);letter-spacing:.04em">ENCABEZADO</td><td class="n">12 / 700 · +0.04em</td><td>Encabezado de tabla y badges</td></tr></table></div>
+ <div class="pnl"><h2>Medidas</h2><table class="tt"><tr><th>Elemento</th><th>Escritorio</th><th>Celular</th></tr>
+  <tr><td>Botón</td><td class="n">44 px (chico 36)</td><td class="n">48 px mínimo</td></tr>
+  <tr><td>Campo y selector</td><td class="n">44 px</td><td class="n">48 px mínimo</td></tr>
+  <tr><td>Área táctil / fila de menú</td><td class="n">44 px</td><td class="n">48 px × 48 px</td></tr>
+  <tr><td>Fila de tabla · tarjeta</td><td class="n">60 px</td><td class="n">tarjeta, auto</td></tr>
+  <tr><td>Barra superior · menú lateral</td><td class="n">64 px · 240 px</td><td class="n">60 px · cajón</td></tr>
+  <tr><td>Contenido máximo · márgenes</td><td class="n">1200 px · 24 px</td><td class="n">ancho total · 16 px</td></tr>
+  <tr><td>Puntos de corte</td><td colspan="2">celular &lt; 640 · tableta 640–1023 · escritorio ≥ 1024 (menú lateral fijo)</td></tr>
+  <tr><td>Radios</td><td colspan="2">6 badges y casillas · 10 botones y campos · 14 tarjetas · 18 modales · 999 etiquetas</td></tr>
+  <tr><td>Sombras</td><td colspan="2">tarjeta: 0 1px 2px + 0 2px 6px al 6 % · modal: 0 8px 24px al 22 %. Sin blur ni degradados.</td></tr></table></div>
+ <div class="no-hacer"><b>No hacer</b><ul><li>Rojo en cualquier cosa que no sea riesgo o pánico; verde decorativo.</li><li>Texto blanco sobre ámbar o sobre #1E6EFF/#16A34A/#EF4444 (usar los tonos «-fill»).</li><li>Comunicar un estado solo con color: siempre ícono o texto.</li><li>Más de una acción primaria por pantalla; botones menores a 48 px en celular.</li><li>Degradados, blur, animaciones largas. Solo el pulso del pánico, y se apaga con «reducir movimiento».</li></ul></div>`;
+</script>

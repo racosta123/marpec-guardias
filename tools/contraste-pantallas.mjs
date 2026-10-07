@@ -26,6 +26,8 @@ const ESCENAS = [
     [`formulario de sitio con ubicación (${t})`, "/index.html?rol=admin", v, FORM_SITIO()],
     [`ventana «Elegir en el mapa» (${t})`, "/index.html?rol=admin", v, FORM_SITIO("await w(300); [...document.querySelectorAll('.ubicacion button')].find((b) => /Elegir en el mapa/.test(b.textContent)).click(); await w(2500);")],
   ]),
+  // Ronda 2 (piloto): Asistencia e Incidencias con los datos de ejemplo ?demo=ronda2
+  ...[["PC", PC], ["celular", CEL]].flatMap(([t, v]) => ["asistencia", "incidencias"].map((k) => [`piloto ${k} con datos (${t})`, "/index.html?rol=admin&demo=ronda2", v, `document.querySelector('[data-clave=${k}]').click()`])),
   ...CLAVES.map((k) => [`sección ${k}`, "/index.html?rol=admin", PC, `document.querySelector('[data-clave=${k}]').click()`]),
 ];
 

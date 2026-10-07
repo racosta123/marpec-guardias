@@ -200,3 +200,31 @@ if (p.get("demo") === "vivo") {
   store.usuarios[UID] = { ...store.usuarios[UID] };
   if (p.get("sinpanico")) store.panicoVista = {}; // sin pánico activo: se ve el encabezado completo (con pánico, el aviso tapa la parte de arriba hasta atenderlo)
 }
+
+// ?demo=ronda2: datos de ejemplo de HOY para Asistencia e Incidencias (capturas y pruebas del rediseño; nunca toca producción)
+if (p.get("demo") === "ronda2") {
+  const H = 3600e3, M = 60e3;
+  const d0 = new Date(ahora - 7 * H);
+  const hoy0 = Date.UTC(d0.getUTCFullYear(), d0.getUTCMonth(), d0.getUTCDate()) + 7 * H;
+  const fechaHoy = dia(hoy0 + H);
+  Object.assign(store, { turnos: {}, asistencias: {}, incidenciasResumen: {} });
+  const A = (id, sitioId, sitioNombre, guardiaNombre, ini, fin, extra) => {
+    store.asistencias[id] = { turnoId: id, sitioId, sitioNombre, supervisorUid: sitioId === "siteA" ? "sup1" : "sup2", guardiaUid: "g-" + id, guardiaNombre, inicioMs: hoy0 + ini * H, finMs: hoy0 + fin * H, fecha: fechaHoy,
+      estado: "por_marcar", entradaMs: null, salidaMs: null, retardo: false, falta: false, minutosExtra: 0, extraEstado: "ninguno", relevoAlerta: false, ajustes: 0, ...extra };
+  };
+  A("a1", "siteA", "Plaza Norte", "Gael Guardia", 0, 8, { estado: "cumplido", entradaMs: hoy0 - 2 * M, salidaMs: hoy0 + 8 * H + 3 * M, fotoEntrada: true, fotoSalida: true, entradaDistanciaM: 12, entradaPrecisionM: 9, notasEntrega: "Portón 2 con falla." });
+  A("a2", "siteA", "Plaza Norte", "Luis Ortega", 8, 16, { estado: "en_turno", entradaMs: hoy0 + 8 * H + 18 * M, retardo: true, retardoMin: 18, fotoEntrada: true, entradaDistanciaM: 20, entradaPrecisionM: 11 });
+  A("a3", "siteA", "Plaza Norte", "Iván Duarte", 16, 24, {});
+  A("a4", "siteB", "Bodega Sur", "Gema Guardia", 0, 8, { estado: "falta", falta: true, motivoFalta: "sin_entrada" });
+  A("a5", "siteB", "Bodega Sur", "Rosa Medina", 8, 16, { estado: "en_turno", entradaMs: hoy0 + 8 * H - 4 * M, fotoEntrada: true, minutosExtra: 0 });
+  A("a6", "siteB", "Bodega Sur", "Marta Soto", 16, 24, { estado: "programado" });
+  const I = (id, sitioId, sitioNombre, guardiaNombre, tipoNombre, gravedad, estado, horas, descripcion, extra) => {
+    store.incidenciasResumen[id] = { incidenciaId: id, sitioId, sitioNombre, supervisorUid: sitioId === "siteA" ? "sup1" : "sup2", guardiaUid: "g-" + id, guardiaNombre, tipoId: id, tipoNombre, gravedad, descripcion, creadoMs: ahora - horas * H,
+      nFotos: 0, estado, alta: gravedad === "alta", seguimientos: [], ...extra };
+  };
+  I("n1", "siteA", "Plaza Norte", "Gael Guardia", "Robo", "alta", "abierta", 2, "Candado forzado en el portón principal.", { distanciaM: 14, nFotos: 2 });
+  I("n2", "siteA", "Plaza Norte", "Luis Ortega", "Falla eléctrica", "baja", "en_atencion", 5, "Luminaria del pasillo apagada.", { seguimientos: [{ tipo: "estado", estadoNuevo: "en_atencion", texto: "Se avisó a mantenimiento.", autorNombre: "Sara Supervisora", autorRol: "supervisor", tsMs: ahora - 4 * H }] });
+  I("n3", "siteB", "Bodega Sur", "Rosa Medina", "Puerta o acceso abierto", "media", "abierta", 8, "Puerta lateral abierta durante el rondín; se cerró y se avisó al supervisor.", {});
+  I("n4", "siteB", "Bodega Sur", "Gema Guardia", "Persona sospechosa", "alta", "cerrada", 30, "Persona merodeando en el estacionamiento; se retiró al llegar la patrulla.", { seguimientos: [{ tipo: "comentario", texto: "Se revisaron las cámaras.", autorNombre: "Saúl Supervisor", autorRol: "supervisor", tsMs: ahora - 28 * H }, { tipo: "estado", estadoNuevo: "cerrada", texto: "Sin novedad.", autorNombre: "Saúl Supervisor", autorRol: "supervisor", tsMs: ahora - 26 * H }] });
+  I("n5", "siteA", "Plaza Norte", "Iván Duarte", "Otro", "media", "cerrada", 50, "Alarma activada por error.", {});
+}

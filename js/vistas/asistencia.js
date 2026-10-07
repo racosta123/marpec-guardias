@@ -4,6 +4,7 @@ import { collection, getDocs, orderBy, query, where } from "../vendor/firebase.j
 import { accion, campo, h, limpiar, modal, poner, toast } from "../ui.js";
 import { diaLargo, fechaHora, hora, hoy, localAMs, sumarDias } from "../tz.js";
 import { cargarSitios } from "./sitios.js";
+import { avatar, cabeceraPagina, etiqueta, fila as tfila, indicador, indicadores, tabla, tarjetaFiltros, vacioCompacto } from "../tabla.js";
 
 const ESTADOS = {
   programado: ["Programado", "info"], por_marcar: ["Por marcar", "info"], falta: ["FALTA", "mal"], en_turno: ["En turno", "ok"],
@@ -30,7 +31,7 @@ async function cargarPorEstado(ctx, campoFiltro, valor) {
 export async function vistaAsistencia(raiz, ctx, estado = {}) {
   const { api } = ctx;
   limpiar(raiz);
-  poner(raiz, h("p", { class: "vacio" }, "Cargando asistencia…"));
+  poner(raiz, vacioCompacto("Cargando asistencia…", "", "reloj"));
   const fecha = estado.fecha || hoy();
   const sitios = await cargarSitios(ctx);
   const sitioId = estado.sitioId || "";
@@ -40,26 +41,35 @@ export async function vistaAsistencia(raiz, ctx, estado = {}) {
   const recargar = (e = {}) => vistaAsistencia(raiz, ctx, { fecha, sitioId, ...e });
   const filtrar = (x) => !sitioId || x.sitioId === sitioId;
 
+  // Tira de color: rojo = falta o relevo que no llegó; ámbar = retardo; verde = en turno/cumplido; azul = pendiente.
   const fila = (a) => {
     const [txt, clase] = ESTADOS[a.estado] || [a.estado, "info"];
-    return h("li", { class: `item asis ${a.estado === "falta" || a.estado === "relevo_no_llego" ? "alerta-borde" : ""}` },
-      h("div", { class: "item-info" },
-        h("strong", {}, a.guardiaNombre || "Guardia"),
-        h("span", { class: "sub" }, `${hora(a.inicioMs)}–${hora(a.finMs)} · ${a.sitioNombre}`),
-        h("span", {}, h("span", { class: `etq ${clase}` }, txt),
-          a.retardo ? h("span", { class: "etq prueba" }, `Retardo ${a.retardoMin} min`) : null,
-          a.minutosExtra > 0 ? h("span", { class: "etq info" }, `Extra ${a.minutosExtra} min · ${EXTRA[a.extraEstado] || ""}${a.extraEnCurso ? " (en curso)" : ""}`) : null,
-          a.ajustes ? h("span", { class: "etq prueba" }, `${a.ajustes} ajuste(s)`) : null,
-          a.prueba ? h("span", { class: "etq prueba" }, "PRUEBA") : null),
-        h("span", { class: "sub" }, `Entrada: ${a.entradaMs ? hora(a.entradaMs) : "—"} · Salida: ${a.salidaMs ? hora(a.salidaMs) : "—"}`
-          + (a.entradaDistanciaM != null ? ` · a ${Math.round(a.entradaDistanciaM)} m (±${Math.round(a.entradaPrecisionM)} m)` : "")),
-        a.cierreAutorizadoPor ? h("span", { class: "sub" }, `Cierre sin relevo autorizado por ${a.cierreAutorizadoPor}: ${a.cierreMotivo}`) : null,
-        a.extraResueltoPor ? h("span", { class: "sub" }, `Extra ${a.extraEstado} por ${a.extraResueltoPor}: ${a.extraMotivo}`) : null,
-        a.notasEntrega ? h("span", { class: "sub" }, `Notas de entrega: ${a.notasEntrega}`) : null),
-      h("div", { class: "item-acc" },
-        a.fotoEntrada ? h("button", { class: "btn chico secundario", type: "button", onclick: () => verSelfie(a, "entrada") }, "Selfie entrada") : null,
-        a.fotoSalida ? h("button", { class: "btn chico secundario", type: "button", onclick: () => verSelfie(a, "salida") }, "Selfie salida") : null,
-        h("button", { class: "btn chico secundario", type: "button", onclick: () => formAjuste(a) }, "Ajuste")));
+    const critica = a.estado === "falta" || a.estado === "relevo_no_llego";
+    const detalles = [
+      a.entradaDistanciaM != null ? `Entrada a ${Math.round(a.entradaDistanciaM)} m del sitio (±${Math.round(a.entradaPrecisionM)} m)` : null,
+      a.cierreAutorizadoPor ? `Cierre sin relevo autorizado por ${a.cierreAutorizadoPor}: ${a.cierreMotivo}` : null,
+      a.extraResueltoPor ? `Extra ${a.extraEstado} por ${a.extraResueltoPor}: ${a.extraMotivo}` : null,
+      a.notasEntrega ? `Notas de entrega: ${a.notasEntrega}` : null,
+    ].filter(Boolean);
+    return tfila({
+      tira: critica ? "mal" : a.retardo ? "ambar" : clase === "mal" ? "mal" : clase === "ok" ? "ok" : "info",
+      extra: critica ? "alerta-borde" : "",
+      celdas: [
+        { et: "Guardia", cls: "c-nombre", nodos: [avatar(a.guardiaNombre), h("div", {}, h("strong", {}, a.guardiaNombre || "Guardia"), h("span", { class: "sub" }, `${hora(a.inicioMs)}–${hora(a.finMs)}`))] },
+        { et: "Entrada", cls: "c-hora", nodos: a.entradaMs ? hora(a.entradaMs) : "—" },
+        { et: "Salida", cls: "c-hora", nodos: a.salidaMs ? hora(a.salidaMs) : "—" },
+        { et: "Estado", cls: "c-estado", nodos: [etiqueta(txt, clase),
+          a.retardo ? etiqueta(`Retardo ${a.retardoMin} min`, "prueba") : null,
+          a.minutosExtra > 0 ? etiqueta(`Extra ${a.minutosExtra} min · ${EXTRA[a.extraEstado] || ""}${a.extraEnCurso ? " (en curso)" : ""}`, "info") : null,
+          a.ajustes ? etiqueta(`${a.ajustes} ajuste(s)`, "prueba") : null,
+          a.prueba ? etiqueta("PRUEBA", "prueba") : null] },
+        { cls: "c-acc", nodos: [
+          a.fotoEntrada ? h("button", { class: "btn chico secundario", type: "button", onclick: () => verSelfie(a, "entrada") }, "Selfie entrada") : null,
+          a.fotoSalida ? h("button", { class: "btn chico secundario", type: "button", onclick: () => verSelfie(a, "salida") }, "Selfie salida") : null,
+          h("button", { class: "btn chico secundario", type: "button", onclick: () => formAjuste(a) }, "Ajuste")] },
+      ],
+      detalle: detalles.length ? detalles.map((d) => h("span", { class: "sub" }, d)) : null,
+    });
   };
 
   const porSitio = new Map();
@@ -67,14 +77,20 @@ export async function vistaAsistencia(raiz, ctx, estado = {}) {
   const faltas = dia.filter(filtrar).filter((a) => a.falta).length;
   const retardos = dia.filter(filtrar).filter((a) => a.retardo).length;
 
+  const delDia = dia.filter(filtrar);
+  const enTurno = delDia.filter((a) => a.estado === "en_turno").length;
+  const COLS = [{ t: "Guardia" }, { t: "Entrada" }, { t: "Salida" }, { t: "Estado" }, { t: "" }];
   limpiar(raiz);
   poner(raiz,
-    h("div", { class: "barra" }, h("h2", {}, "Asistencia"),
-      h("div", { class: "barra-acc" }, h("button", { class: "btn chico secundario", type: "button", onclick: () => recargar() }, "↻ Actualizar"))),
-    h("div", { class: "filtros dos" },
-      h("input", { type: "date", value: fecha, "aria-label": "Día", onchange: (e) => e.target.value && recargar({ fecha: e.target.value }) }),
-      h("select", { value: sitioId, "aria-label": "Sitio", onchange: (e) => recargar({ sitioId: e.target.value }) },
+    cabeceraPagina("Asistencia", `${diaLargo(localAMs(fecha, "12:00"))}: ${delDia.length} turno(s) con guardia · ${retardos} retardo(s) · ${faltas} falta(s)`,
+      h("button", { class: "btn chico secundario", type: "button", onclick: () => recargar() }, "↻ Actualizar")),
+    indicadores(indicador("azul", "turnos", delDia.length, "Turnos con guardia"), indicador("verde", "envivo", enTurno, "En turno ahora"),
+      indicador("ambar", "reloj", retardos, "Retardos"), indicador("rojo", "incidencias", faltas, "Faltas")),
+    tarjetaFiltros("filtros-asistencia",
+      campo("Día", h("input", { type: "date", value: fecha, "aria-label": "Día", onchange: (e) => e.target.value && recargar({ fecha: e.target.value }) })),
+      campo("Sitio", h("select", { value: sitioId, "aria-label": "Sitio", onchange: (e) => recargar({ sitioId: e.target.value }) },
         h("option", { value: "" }, "Todos los sitios"), sitios.map((s) => h("option", { value: s.id }, s.nombre)))),
+      h("button", { class: "btn chico secundario", type: "button", onclick: () => recargar({ fecha: hoy(), sitioId: "" }) }, "Limpiar")),
     relevos.filter(filtrar).length ? h("section", { class: "alerta-caja" }, h("h3", {}, "⚠ Relevo no llegó"),
       h("ul", { class: "lista" }, relevos.filter(filtrar).map((a) => h("li", { class: "item alerta-borde" },
         h("div", { class: "item-info" }, h("strong", {}, `${a.sitioNombre}: ${a.guardiaNombre} sigue en el puesto`),
@@ -87,9 +103,9 @@ export async function vistaAsistencia(raiz, ctx, estado = {}) {
         h("div", { class: "item-acc" },
           h("button", { class: "btn chico primario", type: "button", disabled: a.extraEnCurso, onclick: () => formExtra(a, "autorizado") }, "Autorizar"),
           h("button", { class: "btn chico peligro", type: "button", disabled: a.extraEnCurso, onclick: () => formExtra(a, "rechazado") }, "Rechazar")))))) : null,
-    h("p", { class: "resumen-dia" }, `${diaLargo(localAMs(fecha, "12:00"))}: ${dia.filter(filtrar).length} turno(s) con guardia · ${retardos} retardo(s) · ${faltas} falta(s)`),
-    porSitio.size ? [...porSitio.entries()].map(([sitio, filas]) => h("section", { class: "bloque" }, h("h3", {}, sitio), h("ul", { class: "lista" }, filas.map(fila))))
-      : h("p", { class: "vacio" }, "No hay turnos con guardia asignado este día."),
+    porSitio.size ? [...porSitio.entries()].map(([sitio, filas]) => h("section", { class: "tcard2" },
+      h("header", {}, h("h3", {}, sitio), h("span", { class: "cuenta" }, `${filas.length} turno(s)`)), tabla("tabla-asistencia", COLS, filas.map(fila))))
+      : vacioCompacto("No hay turnos con guardia asignado este día.", "Cambia el día o el sitio para ver otros turnos.", "turnos"),
     h("p", { class: "ayuda" }, "Las marcas nunca se editan: una corrección es un ajuste con motivo y tu nombre. Horario de Hermosillo."));
 
   // ---------- selfies ----------
