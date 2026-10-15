@@ -47,6 +47,9 @@ writeFileSync(join(salida, "_headers"), `/*
   Cache-Control: no-cache
   Service-Worker-Allowed: /
 
+/
+  Cache-Control: no-cache
+
 /index.html
   Cache-Control: no-cache
 

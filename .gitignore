@@ -12,3 +12,4 @@ ui-debug.log
 .firebase/
 .tools/
 docs/diseno-referencia.png
+tools/alta-admin.mjs

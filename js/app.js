@@ -55,7 +55,8 @@ let limpiezaVista = null; // una vista en tiempo real devuelve la función que c
 function detenerSesion() {
   document.body.classList.remove("menu-abierto");
   delete document.body.dataset.rol;
-  $("btn-menu").hidden = true; $("btn-campana").hidden = true; $("btn-ayuda").hidden = true;
+  $("btn-menu").hidden = true; $("btn-campana").hidden = true;
+  $("btn-ayuda")?.toggleAttribute("hidden", true); // ?.: una página index.html de la versión anterior (en caché) no trae este botón
   if (limpiezaVista) { limpiezaVista(); limpiezaVista = null; }
   detenerEnvio(); desmontarPanico(); detenerAlertasPanico();
   const b = $("barra-sync");
@@ -89,9 +90,11 @@ async function montarApp(ctx) {
   if (!secciones) {
     // Ayuda del guardia: botón en su barra; «Ir a ese módulo» lo regresa a su pantalla de turno.
     const inicioGuardia = () => vistaGuardia(raiz, ctx).catch(() => { limpiar(raiz); raiz.append(h("p", { class: "error" }, "No fue posible cargar tu turno.")); });
-    const ayuda = $("btn-ayuda");
-    ayuda.hidden = false;
-    ayuda.onclick = () => vistaAyuda(raiz, { ...ctx, irA: inicioGuardia, secciones: ["inicio"] });
+    const ayuda = $("btn-ayuda"); // puede faltar si el navegador aún tiene la página index.html anterior: se omite el botón
+    if (ayuda) {
+      ayuda.hidden = false;
+      ayuda.onclick = () => vistaAyuda(raiz, { ...ctx, irA: inicioGuardia, secciones: ["inicio"] });
+    }
     try { await vistaGuardia(raiz, ctx); } catch { limpiar(raiz); raiz.append(h("p", { class: "error" }, "No fue posible cargar tu turno.")); }
     return;
   }
@@ -255,7 +258,18 @@ $("btn-salir").addEventListener("click", async () => {
 });
 
 // ---- Estado de sesión ----
-onAuthStateChanged(auth, async (user) => {
+// Si el arranque falla por algo inesperado (p. ej. una mezcla de archivos de dos versiones en la caché del navegador),
+// no se queda en «Cargando…»: muestra el acceso con el aviso de actualizar la página.
+function arranqueFallido() {
+  try { detenerSesion(); } catch { /* solo detiene procesos locales: NO borra la cola ni cierra la sesión */ }
+  try {
+    limpiar($("contenido")); limpiar($("tabs-app")); // nada de una sesión anterior queda en la página
+    mostrar("login");
+    error("No fue posible iniciar la app. Actualiza la página.");
+  } catch { /* página incompleta: no hay más que mostrar */ }
+}
+onAuthStateChanged(auth, (user) => { alCambiarSesion(user).catch(arranqueFallido); });
+async function alCambiarSesion(user) {
   await licenciaLista;
   if (licencia?.vencido) { detenerSesion(); mostrar("demo"); return; } // los datos se conservan; solo se detiene el uso
   if (!user) {
@@ -297,7 +311,7 @@ onAuthStateChanged(auth, async (user) => {
     mostrar("login");
     error("No fue posible validar tu acceso. Revisa tu conexión e intenta de nuevo.");
   }
-});
+}
 
 // ---- PWA ----
 if ("serviceWorker" in navigator) {
