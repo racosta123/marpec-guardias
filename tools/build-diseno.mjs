@@ -16,7 +16,7 @@ const USADOS = {
   escudo: "shield-check", entrada: "log-in", salida: "log-out", reloj: "clock", ubicacion: "map-pin", check: "check", derecha: "chevron-right",
   menu: "menu", cerrar: "x", panico: "siren", novedad: "file-pen-line", usuario: "circle-user-round", libro: "book-open-text",
   camara: "camera", qr: "qr-code", usuarios: "users", escudoalerta: "shield-alert", campana: "bell-ring", chevronabajo: "chevron-down",
-  rondin: "shield-check", wifi: "wifi", cuadro: "layout-dashboard",
+  rondin: "shield-check", wifi: "wifi", cuadro: "layout-dashboard", ayuda: "circle-question-mark",
 };
 const salida = {};
 for (const [nombre, archivo] of Object.entries(USADOS)) {

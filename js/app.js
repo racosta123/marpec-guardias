@@ -25,6 +25,7 @@ import { vistaRondines } from "./vistas/rondines.js";
 import { vistaIncidencias } from "./vistas/incidencias.js";
 import { vistaVisitantes } from "./vistas/visitantes.js";
 import { vistaBitacoras } from "./vistas/bitacoras.js";
+import { vistaAyuda } from "./vistas/ayuda.js";
 import { debeAvisar, estadoLicencia, textoBanner } from "./licencia.js";
 import { icono } from "./iconos.js";
 
@@ -44,8 +45,8 @@ const ROLES = {
 // Secciones por rol. El supervisor solo ve turnos y sitios propios; el resto es del admin.
 // [clave, etiqueta, vista, ícono]
 const SECCIONES = {
-  supervisor: [["vivo", "En vivo", vistaVivo, "envivo"], ["asistencia", "Asistencia", vistaAsistencia, "asistencia"], ["rondines", "Rondines", vistaRondines, "rondines"], ["incidencias", "Incidencias", vistaIncidencias, "incidencias"], ["visitantes", "Visitantes", vistaVisitantes, "visitantes"], ["bitacoras", "Bitácoras", vistaBitacoras, "bitacoras"], ["offline", "Sin conexión", vistaOffline, "sinconexion"], ["alertas", "Alertas", vistaAlertas, "alertas"], ["turnos", "Turnos", vistaTurnos, "turnos"], ["sitios", "Mis sitios", vistaSitios, "sitios"]],
-  admin: [["vivo", "En vivo", vistaVivo, "envivo"], ["asistencia", "Asistencia", vistaAsistencia, "asistencia"], ["rondines", "Rondines", vistaRondines, "rondines"], ["incidencias", "Incidencias", vistaIncidencias, "incidencias"], ["visitantes", "Visitantes", vistaVisitantes, "visitantes"], ["bitacoras", "Bitácoras", vistaBitacoras, "bitacoras"], ["offline", "Sin conexión", vistaOffline, "sinconexion"], ["alertas", "Alertas", vistaAlertas, "alertas"], ["turnos", "Turnos", vistaTurnos, "turnos"], ["sitios", "Sitios", vistaSitios, "sitios"], ["personal", "Personal", vistaPersonal, "personal"], ["reportes", "Reportes", vistaReportes, "reportes"], ["empresa", "Empresa", vistaEmpresa, "empresa"], ["bitacora", "Bitácora", vistaBitacora, "auditoria"]],
+  supervisor: [["vivo", "En vivo", vistaVivo, "envivo"], ["asistencia", "Asistencia", vistaAsistencia, "asistencia"], ["rondines", "Rondines", vistaRondines, "rondines"], ["incidencias", "Incidencias", vistaIncidencias, "incidencias"], ["visitantes", "Visitantes", vistaVisitantes, "visitantes"], ["bitacoras", "Bitácoras", vistaBitacoras, "bitacoras"], ["offline", "Sin conexión", vistaOffline, "sinconexion"], ["alertas", "Alertas", vistaAlertas, "alertas"], ["turnos", "Turnos", vistaTurnos, "turnos"], ["sitios", "Mis sitios", vistaSitios, "sitios"], ["ayuda", "Ayuda", vistaAyuda, "ayuda"]],
+  admin: [["vivo", "En vivo", vistaVivo, "envivo"], ["asistencia", "Asistencia", vistaAsistencia, "asistencia"], ["rondines", "Rondines", vistaRondines, "rondines"], ["incidencias", "Incidencias", vistaIncidencias, "incidencias"], ["visitantes", "Visitantes", vistaVisitantes, "visitantes"], ["bitacoras", "Bitácoras", vistaBitacoras, "bitacoras"], ["offline", "Sin conexión", vistaOffline, "sinconexion"], ["alertas", "Alertas", vistaAlertas, "alertas"], ["turnos", "Turnos", vistaTurnos, "turnos"], ["sitios", "Sitios", vistaSitios, "sitios"], ["personal", "Personal", vistaPersonal, "personal"], ["reportes", "Reportes", vistaReportes, "reportes"], ["empresa", "Empresa", vistaEmpresa, "empresa"], ["bitacora", "Bitácora", vistaBitacora, "auditoria"], ["ayuda", "Ayuda", vistaAyuda, "ayuda"]],
 };
 
 // Sesión activa: para cerrarla limpiamente (cola local, botón de pánico, alertas).
@@ -54,7 +55,7 @@ let limpiezaVista = null; // una vista en tiempo real devuelve la función que c
 function detenerSesion() {
   document.body.classList.remove("menu-abierto");
   delete document.body.dataset.rol;
-  $("btn-menu").hidden = true; $("btn-campana").hidden = true;
+  $("btn-menu").hidden = true; $("btn-campana").hidden = true; $("btn-ayuda").hidden = true;
   if (limpiezaVista) { limpiezaVista(); limpiezaVista = null; }
   detenerEnvio(); desmontarPanico(); detenerAlertasPanico();
   const b = $("barra-sync");
@@ -86,9 +87,16 @@ async function montarApp(ctx) {
     catch { limpiar(raiz); raiz.append(h("p", { class: "error" }, "No fue posible cargar esta sección. Intenta de nuevo.")); }
   };
   if (!secciones) {
+    // Ayuda del guardia: botón en su barra; «Ir a ese módulo» lo regresa a su pantalla de turno.
+    const inicioGuardia = () => vistaGuardia(raiz, ctx).catch(() => { limpiar(raiz); raiz.append(h("p", { class: "error" }, "No fue posible cargar tu turno.")); });
+    const ayuda = $("btn-ayuda");
+    ayuda.hidden = false;
+    ayuda.onclick = () => vistaAyuda(raiz, { ...ctx, irA: inicioGuardia, secciones: ["inicio"] });
     try { await vistaGuardia(raiz, ctx); } catch { limpiar(raiz); raiz.append(h("p", { class: "error" }, "No fue posible cargar tu turno.")); }
     return;
   }
+  ctx.irA = (clave) => { cerrarMenu(); abrir(clave); }; // «Ir a ese módulo» desde la Ayuda
+  ctx.secciones = secciones.map((s) => s[0]);
   for (const [clave, etiqueta, , ico] of secciones)
     nav.append(h("button", { type: "button", class: "tab-app", "data-clave": clave, onclick: () => { cerrarMenu(); abrir(clave); } }, icono(ico, { tam: 20 }), etiqueta));
   prepararEncabezado(() => abrir("alertas"));

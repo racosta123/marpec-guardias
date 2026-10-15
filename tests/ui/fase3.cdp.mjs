@@ -143,7 +143,7 @@ try {
   // ---------------- SUPERVISOR: panel de asistencia ----------------
   await ir("/index.html?rol=supervisor");
   const tabs = await ev("[...document.querySelectorAll('.tab-app')].map((b) => b.textContent).join(',')");
-  check("supervisor: pestañas En vivo, Asistencia, Rondines, Incidencias, Visitantes, Bitácoras, Sin conexión, Alertas, Turnos y Mis sitios", tabs === "En vivo,Asistencia,Rondines,Incidencias,Visitantes,Bitácoras,Sin conexión,Alertas,Turnos,Mis sitios", tabs);
+  check("supervisor: pestañas En vivo, Asistencia, Rondines, Incidencias, Visitantes, Bitácoras, Sin conexión, Alertas, Turnos, Mis sitios y Ayuda", tabs === "En vivo,Asistencia,Rondines,Incidencias,Visitantes,Bitácoras,Sin conexión,Alertas,Turnos,Mis sitios,Ayuda", tabs);
   await hasta("!!document.querySelector('[data-clave=asistencia]')");
   await ev("document.querySelector('[data-clave=asistencia]').click()");
   const panel = await conTexto("#contenido", /Autorizar cierre sin relevo/i);
