@@ -364,6 +364,15 @@ try {
     check(`demo vencida (${rol}): pantalla «Periodo de demostración concluido…», sin app ni botón de pánico`, /Periodo de demostración concluido\. Para continuar usando MARPEC Guardias, contacta a Diagonal Catorce\./.test(await texto("#vista-demo")) && (await ev("document.getElementById('vista-inicio').hidden && document.getElementById('vista-login').hidden && !document.getElementById('btn-panico') && !document.getElementById('alertas-panico')")) === true);
   }
 
+  // detenerSesion() (lo usan «demo vencida» y el aviso de arranque fallido) detiene procesos locales pero NO borra la cola ni cierra la sesión
+  await ir("/index.html?rol=guardia", 2500);
+  await ev(`new Promise((res) => { const r = indexedDB.open("marpec-cola"); r.onsuccess = () => { const t = r.result.transaction("cola", "readwrite"); t.objectStore("cola").add({ id: "pendiente-prueba-0001", uid: "g-G001", tipo: "novedad", ruta: "/novedades", estado: "pendiente", intentos: 0, resumen: "x", turnoId: "t5", horaEstimadaMs: Date.now(), body: { turnoId: "t5", texto: "No debe borrarse." } }); t.oncomplete = () => res(true); }; })`);
+  await ev("window.__setOffline(true)");
+  await ir("/index.html?rol=guardia&lic=vencida&offline=1", 2500);
+  const colaTras = await cola();
+  check("detenerSesion (demo vencida): la cola de pendientes se conserva", colaTras.length === 1 && colaTras[0].id === "pendiente-prueba-0001", String(colaTras.length));
+  check("detenerSesion (demo vencida): NO se cierra la sesión (signOut no se llamó)", (await ev("window.__signOuts || 0")) === 0 && /Periodo de demostración concluido/.test(await texto("#vista-demo")));
+
   check("sin excepciones de JavaScript durante toda la prueba", errores.length === 0, errores.slice(0, 2).join(" | "));
   console.log(fallos ? `\n${fallos} PRUEBA(S) FALLARON` : "\nTODAS LAS PRUEBAS DE INTERFAZ (FASE 6) PASARON");
   sock.close();

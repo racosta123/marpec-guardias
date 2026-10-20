@@ -173,7 +173,7 @@ export const initializeAuth = () => auth;
 export const indexedDBLocalPersistence = {};
 export const browserLocalPersistence = {};
 export const onAuthStateChanged = (_a, f) => { cb = f; setTimeout(() => f(p.get("anon") ? null : user), 50); return () => {}; };
-export const signOut = async () => { auth.currentUser = null; if (cb) cb(null); };
+export const signOut = async () => { window.__signOuts = (window.__signOuts || 0) + 1; auth.currentUser = null; if (cb) cb(null); };
 export const signInWithCustomToken = async () => {};
 export const signInWithEmailAndPassword = async () => {};
 

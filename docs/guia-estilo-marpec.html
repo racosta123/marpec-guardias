@@ -458,10 +458,7 @@ const formGuardia = (mv) => `<div class="pnl"><h2>Datos del guardia</h2>
 const pAltaPC = () => pcWrap('personal', `
   <div><div class="mig">${ic('atras', 16)}Personal</div><div class="ph"><div><h1>Alta de guardia</h1><p>El guardia entrará con su número de empleado y su PIN.</p></div></div></div>
   <div class="tabs" role="tablist"><button class="tab" role="tab" aria-selected="true">${ic('usuario', 18)}Guardia</button><button class="tab" role="tab" aria-selected="false">${ic('personal', 18)}Supervisor</button></div>
-  <div class="dos-col"><div style="display:flex;flex-direction:column;gap:16px">${formGuardia()}
-    <div class="pnl"><h2>Opciones de acceso</h2>
-      <label class="sw"><input type="checkbox" checked> Cuenta activa al crearla</label>
-      <label class="chk"><input type="checkbox"> Marcar como guardia de prueba</label></div></div>
+  <div class="dos-col"><div style="display:flex;flex-direction:column;gap:16px">${formGuardia()}</div>
     <div style="display:flex;flex-direction:column;gap:12px">
       <div class="al c-info">${ic('info', 20)}<div class="cuerpo"><b>Antes de entregar el PIN</b>El PIN lo defines tú: entrégaselo al guardia en persona. Si lo olvida, se restablece desde Personal.</div></div>
       <div class="al c-warn">${ic('alertas', 20)}<div class="cuerpo"><b>Cinco intentos fallidos</b>Después de 5 PIN incorrectos el acceso se bloquea 15 minutos. Puedes desbloquearlo antes desde Personal.</div></div></div></div>`);
@@ -471,8 +468,6 @@ const pAltaMV = () => mvWrap('Administración', `
   <div class="pnl"><h2>Datos del guardia</h2>
     ${fld('Número de empleado', '<input type="text" value="G024">', '3 a 12 letras o números.')}${fld('Nombre completo', '<input type="text" value="Carlos Aguirre">')}
     ${fld('PIN inicial', '<input type="password" value="12">', '4 a 6 dígitos. Entrégaselo en persona.', 'El PIN debe tener entre 4 y 6 dígitos.')}
-    <label class="sw"><input type="checkbox" checked> Cuenta activa al crearla</label>
-    <label class="chk"><input type="checkbox"> Marcar como guardia de prueba</label>
     ${btn('Crear guardia', 'pri', 'masusr', 'blk')}${btn('Cancelar', 'sec', '', 'blk')}</div>
   <div class="al c-info">${ic('info', 20)}<div class="cuerpo"><b>Antes de entregar el PIN</b>Tú lo defines: entrégaselo en persona. Si lo olvida, se restablece desde Personal.</div></div>`);
 
